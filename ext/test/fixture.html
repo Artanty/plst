@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Playlist 1 - fixture: 40 tracks under PlaylistPage_content__</title>
+  <style>
+    body { margin: 0; font: 13px sans-serif; }
+    #scroller { height: 480px; overflow-y: auto; position: relative; }
+    .PlaylistPage_root { position: relative; }
+    .PlaylistPage_content__test { position: relative; }
+    .CommonTrack_root { display: flex; align-items: center; height: 52px; padding: 0 8px; box-sizing: border-box; border-bottom: 1px solid #f0f0f0; }
+    .TrackPlaylist_important { background: #fff; }
+    .Meta_title, .Meta_artists, .Meta_albumLink, .CommonControlsBar_duration { margin: 0 6px; font-size: 13px; }
+    #out { width: 100%; height: 180px; box-sizing: border-box; font: 11px monospace; }
+    #log { font: 11px monospace; white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <div id="scroller" class="virtuoso-scroller" data-test-id="virtuoso-scroller">
+    <div class="PlaylistPage_root">
+      <div class="PlaylistPage_content__test" id="content">
+      </div>
+    </div>
+  </div>
+  <textarea id="out" readonly></textarea>
+  <pre id="log"></pre>
+
+  <script>
+    (() => {
+      const STEP_PX = 400;
+      const SCROLLER_SEL =
+        '[data-test-id*="virtuoso-scroller"], [class*="virtuoso-scroller"]';
+      const TRACK_LIKE =
+        '[class*="CommonTrack_root"], [class*="TrackPlaylist_important"]';
+
+      const content = document.getElementById("content");
+      content.style.height = "2080px";
+      content.style.position = "relative";
+      const ROW_H = 52;
+      const TOTAL = 40;
+      const scroller = document.querySelector(SCROLLER_SEL);
+
+      const rows = [];
+      for (let i = 1; i <= 40; i += 1) {
+        const r = document.createElement("div");
+        r.className = "CommonTrack_root TrackPlaylist_important";
+        r.innerHTML =
+          '<div class="Meta_title">song ' + i + '</div>' +
+          '<div class="Meta_artists">artist ' + (i % 5 + 1) + '</div>' +
+          '<div class="Meta_albumLink">album ' + (i % 3 + 1) + '</div>' +
+          '<div class="CommonControlsBar_duration">0' + (i % 5) + ':' +
+          String(i % 60).padStart(2, "0") + '</div>';
+        rows.push(r);
+      }
+
+      const virtualize = () => {
+        const top = scroller.scrollTop;
+        const first = Math.floor(top / ROW_H);
+        const last = Math.min(
+          TOTAL - 1,
+          Math.ceil((top + scroller.clientHeight) / ROW_H) + 1
+        );
+        content.textContent = "";
+        for (let i2 = first; i2 <= last; i2 += 1) {
+          content.appendChild(rows[i2]);
+        }
+      };
+
+      // A real Yandex page re-renders its rows when the scroller moves. Wire that up so the
+      // shipped content.js can drive this fixture by scrolling alone, instead of only working
+      // when the walk below happens to call virtualize() itself.
+      scroller.addEventListener("scroll", virtualize);
+      virtualize();
+
+      const seenOnce = () => {
+        const out = [];
+        const uniq = new Set();
+        for (const r of content.querySelectorAll(TRACK_LIKE)) {
+          const t = r.querySelector(".Meta_title")?.textContent?.trim() ?? "";
+          if (!t) continue;
+          if (uniq.has(t)) continue;
+          uniq.add(t);
+          out.push({ title: t });
+        }
+        return out;
+      };
+
+      const moves = [];
+      const grown = [];
+      const result = [];
+
+      const grab = () => {
+        for (const s of seenOnce()) {
+          if (!result.some((x) => x.title === s.title)) {
+            result.push(s);
+            console.log("parsed " + JSON.stringify(s.title));
+          }
+        }
+        grown.push(result.length);
+      };
+
+      const downToBottom = () =>
+        new Promise((resolve) => {
+          let steps = 0;
+          const maxSteps =
+            Math.ceil((scroller.scrollHeight - scroller.clientHeight) / STEP_PX) +
+            6;
+          const tick = async () => {
+            await new Promise((r) => setTimeout(r, 25));
+            virtualize();
+            grab();
+
+            const atBottom =
+              scroller.scrollTop + scroller.clientHeight >=
+              scroller.scrollHeight - 2;
+
+            if (atBottom || steps >= maxSteps) {
+              resolve();
+              return;
+            }
+
+            const before = scroller.scrollTop;
+            const target = Math.min(before + STEP_PX, scroller.scrollHeight);
+            scroller.scrollTop = target;
+            moves.push(scroller.scrollTop - before);
+            steps += 1;
+            return tick();
+          };
+          return tick();
+        });
+
+      const upToTop = () =>
+        new Promise((resolve) => {
+          let steps = 0;
+          const maxSteps =
+            Math.ceil((scroller.scrollHeight - scroller.clientHeight) / STEP_PX) +
+            6;
+          const tick = async () => {
+            await new Promise((r) => setTimeout(r, 25));
+            virtualize();
+            grab();
+
+            if (scroller.scrollTop <= 0 || steps >= maxSteps) {
+              resolve();
+              return;
+            }
+
+            const before = scroller.scrollTop;
+            scroller.scrollTop = Math.max(0, before - STEP_PX);
+            moves.push(scroller.scrollTop - before);
+            steps += 1;
+            return tick();
+          };
+          return tick();
+        });
+
+      window.__walk = (async () => {
+        await downToBottom();
+        // RUN IT SECOND TIME FROM BOTTOM TO TOP: back up to top and re-collect
+        await upToTop();
+
+        virtualize();
+        grab();
+
+        window.__result = result;
+        window.__moves = moves;
+        window.__grown = grown;
+        window.__walkDone = true;
+        return result;
+      })();
+    })();
+  </script>
+</body>
+</html>

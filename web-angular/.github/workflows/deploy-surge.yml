@@ -1,0 +1,240 @@
+name: Deploy Web to Surge
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '**'
+
+permissions:
+  contents: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    name: Build and Deploy Angular App to Surge
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      # The credentials live in the .env this repo's deploy tool generates, not
+      # in repository secrets. Secrets still win when they exist; .env is the
+      # fallback. Everything after this step reads SERVICE_EMAIL /
+      # SERVICE_PASSWORD / SURGE_TOKEN from $GITHUB_ENV.
+      - name: Resolve surge credentials
+        env:
+          SURGE_TOKEN: ${{ secrets.SURGE_TOKEN }}
+          SERVICE_EMAIL: ${{ secrets.SERVICE_EMAIL }}
+          SERVICE_PASSWORD: ${{ secrets.SERVICE_PASSWORD }}
+        run: |
+          email_src="GitHub secrets"; pass_src="GitHub secrets"; token_src="GitHub secrets"
+          if [ -z "$SERVICE_EMAIL" ]; then email_src="missing"; fi
+          if [ -z "$SERVICE_PASSWORD" ]; then pass_src="missing"; fi
+          if [ -z "$SURGE_TOKEN" ]; then token_src="missing"; fi
+
+          if [ -f .env ]; then
+            if [ "$email_src" = "missing" ]; then
+              SERVICE_EMAIL=$(grep -E '^SERVICE_EMAIL=' .env | head -1 | cut -d '=' -f2- | tr -d '\r')
+              if [ -n "$SERVICE_EMAIL" ]; then email_src=".env"; fi
+            fi
+            if [ "$pass_src" = "missing" ]; then
+              SERVICE_PASSWORD=$(grep -E '^SERVICE_PASSWORD=' .env | head -1 | cut -d '=' -f2- | tr -d '\r')
+              if [ -n "$SERVICE_PASSWORD" ]; then pass_src=".env"; fi
+            fi
+            if [ "$token_src" = "missing" ]; then
+              SURGE_TOKEN=$(grep -E '^SURGE_TOKEN=' .env | head -1 | cut -d '=' -f2- | tr -d '\r')
+              if [ -n "$SURGE_TOKEN" ]; then token_src=".env"; fi
+            fi
+          fi
+
+          if [ -n "$SERVICE_EMAIL" ] && [ -n "$SERVICE_PASSWORD" ]; then
+            echo "surge credentials: SERVICE_EMAIL ($email_src) + SERVICE_PASSWORD ($pass_src)"
+          elif [ -n "$SURGE_TOKEN" ]; then
+            echo "surge credentials: SURGE_TOKEN ($token_src)"
+          else
+            echo "No surge credentials: SERVICE_EMAIL ($email_src), SERVICE_PASSWORD ($pass_src), SURGE_TOKEN ($token_src)."
+            if [ -f .env ]; then
+              echo ".env is in the checkout with keys: $(grep -oE '^[A-Za-z_]+' .env | sort -u | tr '\n' ' ')"
+            else
+              echo ".env is NOT in the checkout."
+            fi
+            exit 1
+          fi
+
+          {
+            echo "SERVICE_EMAIL=$SERVICE_EMAIL"
+            echo "SERVICE_PASSWORD=$SERVICE_PASSWORD"
+            echo "SURGE_TOKEN=$SURGE_TOKEN"
+          } >> "$GITHUB_ENV"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Angular app
+        run: npm run build -- --configuration production
+
+      - name: Install Surge
+        run: |
+          npm install -g surge
+          if ! command -v expect >/dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq expect
+          fi
+
+      # surge's login/domain prompts come from the `read` package and only
+      # work on a terminal, so a piped `printf` can never satisfy them - the
+      # job just sits on `email:`. This driver gives surge a pty, answers the
+      # prompts from the env, and hands surge's exit status back to the shell.
+      - name: Write the expect driver for surge's prompts
+        run: |
+          cat > "$RUNNER_TEMP/surge.exp" <<'EOF'
+          #!/usr/bin/expect -f
+          set timeout 600
+          set tries(email) 0
+          set tries(password) 0
+          set asked(domain) 0
+
+          spawn {*}$argv
+
+          expect {
+              -re {email:} {
+                  if {![info exists env(SERVICE_EMAIL)] || $env(SERVICE_EMAIL) eq ""} {
+                      puts "\nsurge.exp: surge asked for an email but SERVICE_EMAIL is empty"
+                      exit 1
+                  }
+                  incr tries(email)
+                  if {$tries(email) > 3} {
+                      puts "\nsurge.exp: surge kept asking for an email - check SERVICE_EMAIL"
+                      exit 1
+                  }
+                  puts "\nsurge.exp: answering the email prompt"
+                  send -- "$env(SERVICE_EMAIL)\r"
+                  exp_continue
+              }
+              -re {password:} {
+                  if {![info exists env(SERVICE_PASSWORD)] || $env(SERVICE_PASSWORD) eq ""} {
+                      puts "\nsurge.exp: surge asked for a password but SERVICE_PASSWORD is empty"
+                      exit 1
+                  }
+                  incr tries(password)
+                  if {$tries(password) > 3} {
+                      puts "\nsurge.exp: surge refused the password three times - check SERVICE_PASSWORD"
+                      exit 1
+                  }
+                  puts "\nsurge.exp: answering the password prompt"
+                  send -- "$env(SERVICE_PASSWORD)\r"
+                  exp_continue
+              }
+              -re {forgot\?} {
+                  # surge's own default here is "yes" - that mails a password
+                  # reset. clear the line (ctrl-u) and decline instead.
+                  send -- "\x15no\r"
+                  exp_continue
+              }
+              -re {domain:} {
+                  if {!$asked(domain)} {
+                      set asked(domain) 1
+                      puts "\nsurge.exp: answering the domain prompt with surge's suggestion"
+                      send -- "\r"
+                  }
+                  exp_continue
+              }
+              timeout {
+                  puts "\nsurge.exp: no answer from surge for ${timeout}s - giving up"
+                  exit 124
+              }
+              eof {}
+          }
+
+          catch wait result
+          if {[llength $result] >= 4 && [lindex $result 2] == 0} {
+              exit [lindex $result 3]
+          }
+          exit 1
+          EOF
+
+          cat > "$RUNNER_TEMP/surge-run" <<'EOF'
+          #!/usr/bin/env bash
+          exec expect "$RUNNER_TEMP/surge.exp" surge "$@"
+          EOF
+          chmod +x "$RUNNER_TEMP/surge-run"
+
+      - name: Prepare SPA fallback
+        run: cp dist/app/browser/index.html dist/app/browser/200.html
+
+      - name: Log in to Surge
+        run: |
+          # A valid SURGE_TOKEN is the cleanest path: surge takes it from the
+          # environment and never prompts. If it is rejected (exit 1, "Invalid
+          # token"), drop it for the rest of the job so surge asks for
+          # email/password and the expect driver answers.
+          if [ -n "$SURGE_TOKEN" ]; then
+            if "$RUNNER_TEMP/surge-run" login; then
+              echo "token accepted - publishing will not prompt"
+              exit 0
+            fi
+            echo "SURGE_TOKEN was rejected - falling back to the email/password login"
+            echo "SURGE_TOKEN=" >> "$GITHUB_ENV"
+            unset SURGE_TOKEN
+          fi
+          "$RUNNER_TEMP/surge-run" login
+
+      - name: Deploy to Surge
+        env:
+          SURGE_DEPLOY_DOMAIN: ${{ vars.SURGE_DEPLOY_DOMAIN }}
+        run: |
+          SURGE_DOMAIN=""
+          if [ -f .env ]; then
+            SURGE_DOMAIN=$(grep -E '^SURGE_DOMAIN=' .env | head -1 | cut -d '=' -f2- | tr -d ' \n\r')
+          fi
+
+          slug=$(printf '%s' "${GITHUB_REPOSITORY##*/}" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//')
+          [ -n "$slug" ] || slug="plst"
+
+          claimed=""
+          if [ -n "$SURGE_DEPLOY_DOMAIN" ]; then
+            SURGE_DOMAIN="$SURGE_DEPLOY_DOMAIN"
+          elif [ -z "$SURGE_DOMAIN" ]; then
+            # deterministic: the deploy tool rewrites .env with SURGE_DOMAIN=
+            # empty on every push, so a random name would move the site to a
+            # new address on every deploy.
+            SURGE_DOMAIN="${slug}.surge.sh"
+            claimed=yes
+            echo "No SURGE_DOMAIN found. First deploy... publishing to $SURGE_DOMAIN"
+          fi
+
+          if ! "$RUNNER_TEMP/surge-run" ./dist/app/browser "$SURGE_DOMAIN"; then
+            if [ -z "$claimed" ]; then
+              echo "Publishing to $SURGE_DOMAIN failed. The name is set explicitly, so it is not being replaced - check the surge output above (a domain owned by someone else is a 403)."
+              exit 1
+            fi
+            echo "$SURGE_DOMAIN is not publishable (probably already taken) - retrying under a fresh name"
+            SURGE_DOMAIN="${slug}-$(openssl rand -hex 2).surge.sh"
+            "$RUNNER_TEMP/surge-run" ./dist/app/browser "$SURGE_DOMAIN"
+          fi
+
+          if [ -f .env ] && grep -q '^SURGE_DOMAIN=' .env; then
+            sed -i.bak "s|^SURGE_DOMAIN=.*|SURGE_DOMAIN=$SURGE_DOMAIN|" .env && rm -f .env.bak
+          else
+            echo "SURGE_DOMAIN=$SURGE_DOMAIN" >> .env
+          fi
+          echo "domain=$SURGE_DOMAIN" >> "$GITHUB_ENV"
+
+      - name: Commit and push updated .env with domain
+        if: env.domain != ''
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -f .env
+          if ! git diff --staged --quiet; then
+            git commit -m "chore: set SURGE_DOMAIN from first deploy [skip ci]"
+            git push
+          fi

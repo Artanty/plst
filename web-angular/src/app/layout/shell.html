@@ -1,0 +1,61 @@
+<header class="bar">
+  <a class="brand" routerLink="/library">plst<span>library</span></a>
+
+  <nav>
+    <a routerLink="/library" routerLinkActive="on">Library</a>
+    <a routerLink="/imports" routerLinkActive="on">
+      Imports
+      @if (pendingImports() > 0) {
+        <span class="badge warn" [attr.aria-label]="pendingImports() + ' pending imports'">{{ pendingImports() }}</span>
+      }
+    </a>
+    <a routerLink="/playlists" routerLinkActive="on">
+      Playlists
+      @if (sharedWithMe() > 0) {
+        <span class="badge" [attr.aria-label]="sharedWithMe() + ' shared with you'">{{ sharedWithMe() }}</span>
+      }
+    </a>
+    <a routerLink="/notifications" routerLinkActive="on">
+      Alerts
+      @if (unread() > 0) {
+        <span class="badge" [attr.aria-label]="unread() + ' unread notifications'">{{ unread() }}</span>
+      }
+    </a>
+  </nav>
+
+  <div class="spacer"></div>
+
+  <span class="stat" title="songs in the library">{{ librarySongs() }} songs</span>
+
+  <!-- No login yet: picking a user here IS the login, and the backend trusts the x-user-id header.
+       Disabled until the users API answers — before that the dropdown has no options. -->
+  <label class="switcher">
+    <span class="sr">acting as</span>
+    <select [value]="session.userId()" [disabled]="!usersAnswered()" (change)="onSwitch($event)">
+      @for (u of session.users(); track u.id) {
+        <option [value]="u.id">{{ u.display_name || u.username }}</option>
+      }
+    </select>
+  </label>
+</header>
+
+<main>
+  @if (usersAnswered()) {
+    <router-outlet />
+  } @else if (usersError()) {
+    <p class="load-err" role="alert">
+      could not load the user list: {{ usersError() }}
+      <button class="ghost" (click)="retryUsers()">retry</button>
+    </p>
+  } @else {
+    <app-loader label="loading the app…" />
+  }
+</main>
+
+@if (pendingImports() > 0) {
+  <div class="toast" role="status">
+    {{ pendingImports() }} scan{{ pendingImports() === 1 ? '' : 's' }} waiting — turn
+    {{ pendingImports() === 1 ? 'it' : 'them' }} into a playlist
+    <a routerLink="/imports">open</a>
+  </div>
+}

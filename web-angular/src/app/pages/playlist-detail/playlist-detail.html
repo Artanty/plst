@@ -1,0 +1,208 @@
+@if (playlist(); as p) {
+  <section class="head">
+    <a class="back" routerLink="/playlists">← playlists</a>
+
+    <div class="titleRow">
+      @if (editingName()) {
+        <input
+          class="rename"
+          type="text"
+          [ngModel]="draftName()"
+          (ngModelChange)="draftName.set($event)"
+          aria-label="Playlist name"
+        />
+        <button class="primary" [disabled]="busy()" (click)="commitRename()">Save</button>
+        <button class="ghost" (click)="cancelRename()">Cancel</button>
+      } @else {
+        <h1>{{ p.name }}</h1>
+        @if (p.can_edit) {
+          <button class="ghost" (click)="startRename()">rename</button>
+        }
+      }
+    </div>
+
+    <p class="meta">
+      by {{ p.owner_username }} · {{ items().length }} tracks ·
+      @if (p.can_edit) {
+        you can edit
+      } @else {
+        <span class="ro">view only</span>
+      }
+      · updated {{ timeAgo(p.updated_at) }}
+    </p>
+
+    @if (message()) {
+      <p class="note">{{ message() }}</p>
+    }
+  </section>
+
+  @if (isOwner()) {
+    <section class="share">
+      <h2>Shared with</h2>
+      <ul class="people">
+        @for (c of collaborators(); track c.user_id) {
+          <li>
+            <span>{{ c.display_name || c.username }}</span>
+            <span class="role">{{ c.can_edit ? 'can edit' : 'view only' }}</span>
+            <button class="ghost" (click)="unshare(c.user_id)">remove</button>
+          </li>
+        } @empty {
+          <li class="muted">not shared with anyone</li>
+        }
+      </ul>
+
+      @if (shareOpen()) {
+        <div class="shareForm">
+          <select [ngModel]="shareUserId()" (ngModelChange)="shareUserId.set($event)" aria-label="Share with user">
+            <option [ngValue]="null">pick a user…</option>
+            @for (u of session.users(); track u.id) {
+              @if (u.id !== meId()) {
+                <option [ngValue]="u.id">{{ u.display_name || u.username }}</option>
+              }
+            }
+          </select>
+          <label class="check">
+            <input type="checkbox" [ngModel]="shareCanEdit()" (ngModelChange)="shareCanEdit.set($event)" />
+            can edit
+          </label>
+          <button class="primary" [disabled]="busy() || shareUserId() === null" (click)="share()">Share</button>
+          <button class="ghost" (click)="shareOpen.set(false)">cancel</button>
+        </div>
+      } @else {
+        <button class="ghost" (click)="shareOpen.set(true)">+ share this playlist</button>
+      }
+
+      @if (isOwner()) {
+        <button class="danger" (click)="confirmDelete()">delete playlist</button>
+      }
+    </section>
+  }
+
+  @if (p.can_edit) {
+    <section class="picker">
+      <h2>Add tracks</h2>
+      <div class="pickerRow">
+        <input
+          type="search"
+          placeholder="find a song by title or artist…"
+          [ngModel]="pickerQuery()"
+          (ngModelChange)="pickerQuery.set($event)"
+          aria-label="Find a track to add"
+        />
+        <button class="primary" [disabled]="busy() || picked().size === 0" (click)="addPicked()">
+          Add {{ picked().size ? '(' + picked().size + ')' : '' }}
+        </button>
+      </div>
+
+      @if (pickerQuery().trim()) {
+        <ul class="found">
+          @for (s of candidates.value()?.songs ?? []; track s.id) {
+            <li>
+              <label>
+                <input type="checkbox" [checked]="isPicked(s.id)" (change)="togglePick(s.id)" />
+                <span class="t">{{ s.title }}</span>
+                <span class="a">
+                  @for (ar of s.artists; track ar.id) {
+                    <span>{{ ar.name }}</span>
+                  }
+                </span>
+              </label>
+            </li>
+          } @empty {
+            <li class="muted">nothing matches “{{ pickerQuery() }}”</li>
+          }
+        </ul>
+      }
+    </section>
+  }
+
+  <section class="yt">
+    <div class="ytRow">
+      <strong>{{ matchedCount() }}</strong> of {{ items().length }} matched with YouTube Music
+      <button [disabled]="busy() || matchingAll() || !items().length" (click)="matchAll()">
+        {{ matchingAll() ? 'matching…' : 'match all' }}
+      </button>
+      <button [disabled]="busy() || !items().length" (click)="exportLinks()">export links</button>
+    </div>
+
+    @if (export(); as report) {
+      <div class="export">
+        <div class="head">
+          <strong>{{ report.matched }}</strong> of {{ report.total }} matched
+          @if (report.searchFailed.length) {
+            <span class="warn">{{ report.searchFailed.length }} never searched (YouTube unreachable)</span>
+          }
+          @if (report.unmatched.length) {
+            <span class="warn">{{ report.unmatched.length }} without a match</span>
+          }
+          <span class="spacer"></span>
+          <button (click)="copyExport(report)">copy links</button>
+          <button class="ghost" (click)="dismissExport()">close</button>
+        </div>
+        <textarea readonly [value]="report.text" rows="10" aria-label="The exported links"></textarea>
+        @if (report.uncertain.length) {
+          <p class="warnp">
+            {{ report.uncertain.length }} uncertain match(es) are in the export as comments, not as
+            links — pasting will skip them on purpose:
+            @for (u of report.uncertain; track u.songId) {
+              <span class="chipgap">{{ u.title }} → {{ u.url }}</span>
+            }
+          </p>
+        }
+        @if (report.searchFailed.length) {
+          <p class="warnp">
+            These songs were never searched — YouTube Music was unreachable when matching ran. Fix
+            the connection (is the proxy running?) and match again:
+            @for (u of report.searchFailed; track u.songId) {
+              <span class="chipgap">{{ u.title }}</span>
+            }
+          </p>
+        }
+        @if (report.unmatched.length) {
+          <p class="muted">
+            Unmatched songs are listed as comments in the export, so a short list cannot look like a
+            complete one:
+            @for (u of report.unmatched; track u.songId) {
+              <span class="chipgap">{{ u.title }}</span>
+            }
+          </p>
+        }
+      </div>
+    }
+  </section>
+
+  <ol class="tracks">
+    @for (item of items(); track item.id) {
+      <li>
+        <span class="pos">{{ item.position + 1 }}</span>
+        <span class="t">{{ item.song.title }}</span>
+        <span class="a">{{ artistCredit(item.song) }}</span>
+        <span class="al">{{ item.song.album_title ?? '' }}</span>
+        <span class="d">{{ durationText(item.song.duration_s) }}</span>
+        <span class="ytlink">
+          @if (item.song.yt_video_id) {
+            <a
+              [href]="'https://music.youtube.com/watch?v=' + item.song.yt_video_id"
+              target="_blank"
+              rel="noopener"
+              >yt</a
+            >
+          } @else {
+            <button class="linky" [disabled]="busy()" (click)="matchOne(item.song.id)">find</button>
+          }
+        </span>
+        <span class="by" [title]="'added by ' + item.added_by_username">+{{ item.added_by_username }}</span>
+        @if (p.can_edit) {
+          <button class="x" (click)="remove(item.id)" [attr.aria-label]="'Remove ' + item.song.title">×</button>
+        }
+      </li>
+    } @empty {
+      <li class="muted">No tracks yet.</li>
+    }
+  </ol>
+}
+@if (showLoading()) {
+  <app-loader />
+} @else if (loadError(); as e) {
+  <p class="err">could not load this playlist: {{ e.message }}</p>
+}

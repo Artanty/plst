@@ -1,0 +1,130 @@
+name: Deploy web to Surge
+
+# This file lives in web/.github/ on purpose: GitHub only runs workflows from the
+# repo-root .github/workflows, so it executes in the "slave" repo that receives
+# web/ at its root. The checkout IS the source; vite builds it to ./dist and that
+# is the publish target.
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    name: Deploying to surge
+    # The surge CLI is known to stall after a successful upload on some
+    # networks; a hard cap keeps a hang from burning the 6h default.
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # .env is the only source: HOSTING_DEPLOYMENT_URL (full URL ->
+      # https://my-app.surge.sh/ becomes my-app.surge.sh), SURGE_TOKEN, and
+      # BACK_URL (the public backend origin the deployed site will call).
+      # The first three missing -> fail. TAG_VERSION (the version the UI
+      # displays) is OPTIONAL: without it the committed default in
+      # src/config.ts ships instead of failing the deploy.
+      - name: Read .env file
+        id: env
+        run: |
+          SURGE_DOMAIN=$(grep '^HOSTING_DEPLOYMENT_URL=' .env 2>/dev/null | head -1 | cut -d '=' -f2- | tr -d '\r[:space:]"' \
+            | sed -E 's#^[a-zA-Z]+://##; s#/.*$##')
+          SURGE_TOKEN=$(grep '^SURGE_TOKEN=' .env 2>/dev/null | head -1 | cut -d '=' -f2- | tr -d '\r[:space:]"')
+          BACK_URL=$(grep '^BACK_URL=' .env 2>/dev/null | head -1 | cut -d '=' -f2- | tr -d '\r[:space:]"')
+          TAG_VERSION=$(grep '^TAG_VERSION=' .env 2>/dev/null | head -1 | cut -d '=' -f2- | tr -d '\r[:space:]"')
+
+          if [ -z "$SURGE_DOMAIN" ]; then
+            echo "::error title=Surge deploy failed::HOSTING_DEPLOYMENT_URL is missing/empty in .env; refusing to deploy."
+            exit 1
+          fi
+          if [ -z "$SURGE_TOKEN" ]; then
+            echo "::error title=Surge deploy failed::SURGE_TOKEN is missing/empty in .env; refusing to deploy."
+            exit 1
+          fi
+          if [ -z "$BACK_URL" ]; then
+            echo "::error title=Surge deploy failed::BACK_URL is missing/empty in .env; refusing to deploy."
+            exit 1
+          fi
+          if [ -z "$TAG_VERSION" ]; then
+            echo "::notice title=Surge deploy::TAG_VERSION is missing/empty in .env; the committed default in src/config.ts will ship."
+          fi
+
+          echo "SURGE_DOMAIN=$SURGE_DOMAIN" >> "$GITHUB_OUTPUT"
+          echo "SURGE_TOKEN=$SURGE_TOKEN" >> "$GITHUB_OUTPUT"
+          echo "BACK_URL=$BACK_URL" >> "$GITHUB_OUTPUT"
+          echo "TAG_VERSION=$TAG_VERSION" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      # The committed config.ts is whatever the dev machine last used (usually
+      # an empty/local value). Prod must not ship that: paste the .env BACK_URL
+      # over the API_BASE literal BEFORE the build, so vite bakes the real
+      # backend origin into the bundle.
+      # (tmp+mv instead of `sed -i`: BSD sed wants `-i ''`, GNU sed wants `-i`,
+      #  and this step is also exercised locally.)
+      - name: Inject BACK_URL into src/config.ts
+        env:
+          BACK_URL: ${{ steps.env.outputs.BACK_URL }}
+        run: |
+          esc=$(printf '%s' "$BACK_URL" | sed -e 's/[\\&|]/\\&/g')
+          tmp=$(mktemp)
+          sed "s|^export const API_BASE = .*|export const API_BASE = '$esc';|" src/config.ts > "$tmp"
+          mv "$tmp" src/config.ts
+
+          if ! grep -qF "export const API_BASE = '$BACK_URL';" src/config.ts; then
+            echo "::error title=Surge deploy failed::could not inject BACK_URL into src/config.ts (API_BASE line not found/rewritten)."
+            exit 1
+          fi
+          echo "src/config.ts API_BASE <- $BACK_URL"
+
+      # Same pattern as BACK_URL: bake the version into the bundle before the
+      # build (vite does not inline process.env the way stat's Parcel build
+      # does). Unlike BACK_URL an empty value is not fatal — the step is
+      # skipped and the committed default in src/config.ts ships.
+      - name: Inject TAG_VERSION into src/config.ts
+        env:
+          TAG_VERSION: ${{ steps.env.outputs.TAG_VERSION }}
+        run: |
+          if [ -z "$TAG_VERSION" ]; then
+            echo "TAG_VERSION empty — keeping the committed default in src/config.ts."
+            exit 0
+          fi
+
+          esc=$(printf '%s' "$TAG_VERSION" | sed -e 's/[\\&|]/\\&/g')
+          tmp=$(mktemp)
+          sed "s|^export const TAG_VERSION = .*|export const TAG_VERSION = '$esc';|" src/config.ts > "$tmp"
+          mv "$tmp" src/config.ts
+
+          if ! grep -qF "export const TAG_VERSION = '$TAG_VERSION';" src/config.ts; then
+            echo "::error title=Surge deploy failed::could not inject TAG_VERSION into src/config.ts (TAG_VERSION line not found/rewritten)."
+            exit 1
+          fi
+          echo "src/config.ts TAG_VERSION <- $TAG_VERSION"
+
+      - name: Build React app
+        run: npm run build
+
+      # surge's SPA fallback is `200.html`; keep it a byte-copy of the built index.
+      # CNAME goes next to it — the publish target is dist/.
+      - name: Write CNAME and 200.html
+        run: |
+          echo "${{ steps.env.outputs.SURGE_DOMAIN }}" > dist/CNAME
+          cp dist/index.html dist/200.html
+
+      - run: npm install -g surge
+
+      - name: Publish to surge
+        env:
+          SURGE_DOMAIN: ${{ steps.env.outputs.SURGE_DOMAIN }}
+          SURGE_TOKEN: ${{ steps.env.outputs.SURGE_TOKEN }}
+        run: surge ./dist "$SURGE_DOMAIN" --token "$SURGE_TOKEN"

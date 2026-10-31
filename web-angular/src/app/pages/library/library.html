@@ -1,0 +1,198 @@
+<section class="head">
+  <h1>Library</h1>
+  <input
+    class="search"
+    type="search"
+    placeholder="search by title or artist…"
+    [ngModel]="search"
+    (ngModelChange)="search = $event"
+    aria-label="Search the library by title or artist"
+  />
+  @if (hasFilters()) {
+    <button class="ghost" (click)="clear()">clear filters</button>
+  }
+</section>
+
+<section class="facets">
+  <div class="facet">
+    <h2>Genres</h2>
+    @if (genres.value()?.genres?.length) {
+      <div class="chips">
+        @for (g of genres.value()!.genres; track g.id) {
+          <button class="chip" [class.on]="api.genreFilter() === g.id" (click)="filterGenre(g.id)">
+            {{ g.name }} <span class="n">{{ g.song_count }}</span>
+          </button>
+        }
+      </div>
+    } @else {
+      <p class="muted">
+        No genres yet. The table and the filter are ready — a genre provider just has not filled it in.
+      </p>
+    }
+  </div>
+
+  <div class="facet">
+    <h2>Artists</h2>
+    <div class="chips scroll">
+      @for (a of artists.value()?.artists ?? []; track a.id) {
+        <button class="chip" [class.on]="api.artistFilter() === a.id" (click)="filterArtist(a.id)">{{ a.name }}</button>
+      } @empty {
+        <p class="muted">nothing scanned yet</p>
+      }
+    </div>
+  </div>
+
+  <div class="facet">
+    <h2>Albums</h2>
+    <div class="chips scroll">
+      @for (al of albums.value()?.albums ?? []; track al.id) {
+        <button class="chip" [class.on]="api.albumFilter() === al.id" (click)="filterAlbum(al.id)">
+          {{ al.title }} <span class="n">{{ al.song_count }}</span>
+        </button>
+      } @empty {
+        <p class="muted">nothing scanned yet</p>
+      }
+    </div>
+  </div>
+</section>
+
+@if (songs.isLoading()) {
+  <app-loader />
+} @else if (songs.error()) {
+  <p class="err">could not load the library: {{ songs.error()?.message }}</p>
+} @else {
+  <p class="count">
+    @if (total() === 0) {
+      nothing here yet — scan a playlist in the extension, then press “Import to my library”.
+    } @else {
+      showing {{ from() }}–{{ to() }} of {{ plural(total(), 'song') }}
+    }
+  </p>
+
+  <table class="songs">
+    <thead>
+      <tr>
+        <th class="pick">
+          <input
+            type="checkbox"
+            [checked]="allOnPageSelected()"
+            (change)="togglePage()"
+            [disabled]="!pageIds().length"
+            aria-label="Select every song on this page"
+          />
+        </th>
+        <th>Title</th>
+        <th>Artists</th>
+        <th>Album</th>
+        <th class="num">Time</th>
+        <th class="num">Seen</th>
+        <th class="num">YouTube</th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (s of songs.value()?.songs ?? []; track s.id) {
+        <tr [class.picked]="api.isSelected(s.id)">
+          <td class="pick">
+            <input
+              type="checkbox"
+              [checked]="api.isSelected(s.id)"
+              (change)="api.toggleSelected(s.id)"
+              [attr.aria-label]="'Select ' + s.title"
+            />
+          </td>
+          <td class="title">{{ s.title }}</td>
+          <td class="artists">{{ artistCredit(s) }}</td>
+          <td class="album">{{ s.album_title ?? '—' }}</td>
+          <td class="num">{{ durationText(s.duration_s) }}</td>
+          <td class="num" [title]="'first seen ' + timeAgo(s.first_seen_at)">{{ s.seen_count }}×</td>
+          <td class="num">
+            @if (s.yt_video_id) {
+              <a [href]="'https://music.youtube.com/watch?v=' + s.yt_video_id" target="_blank" rel="noopener"
+                >link</a
+              >
+            } @else {
+              <button class="linky" [disabled]="matching() !== null" (click)="matchOne(s.id)">
+                {{ matching() === s.id ? 'matching…' : 'find match' }}
+              </button>
+            }
+          </td>
+        </tr>
+      }
+    </tbody>
+  </table>
+
+  @if (api.selectedCount() > 0) {
+    <div class="selbar">
+      <strong>{{ api.selectedCount() }}</strong> selected
+      <input
+        class="name"
+        type="text"
+        placeholder="new playlist name…"
+        [ngModel]="playlistName()"
+        (ngModelChange)="playlistName.set($event)"
+        aria-label="Name for the new playlist"
+      />
+      <button [disabled]="busy() || !playlistName().trim()" (click)="createPlaylist()">create playlist</button>
+      <select
+        [ngModel]="targetPlaylist()"
+        (ngModelChange)="targetPlaylist.set($event)"
+        aria-label="Add the selection to an existing playlist"
+      >
+        <option [ngValue]="''">add to…</option>
+        @for (p of editablePlaylists(); track p.id) {
+          <option [ngValue]="p.id">{{ p.name }}{{ p.shared ? ' (shared)' : '' }}</option>
+        }
+      </select>
+      <button [disabled]="busy() || targetPlaylist() === ''" (click)="addToPlaylist()">add</button>
+      <button class="ghost" [disabled]="busy()" (click)="api.clearSelection()">clear</button>
+      <span class="spacer"></span>
+      <button [disabled]="exporting()" (click)="matchSelected()">match with YouTube</button>
+      <button [disabled]="exporting()" (click)="exportSelected()">export links</button>
+      @if (message()) {
+        <span class="msg">{{ message() }}</span>
+      }
+    </div>
+  } @else if (message()) {
+    <p class="msg standalone">{{ message() }}</p>
+  }
+
+  @if (export(); as report) {
+    <div class="export" role="dialog" aria-label="YouTube Music links">
+      <div class="head">
+        <strong>{{ report.matched }}</strong> of {{ report.total }} matched
+        @if (report.unmatched.length) {
+          <span class="warn">{{ report.unmatched.length }} without a match</span>
+        }
+        <span class="spacer"></span>
+        <button (click)="copyExport(report)">copy links</button>
+        <button class="ghost" (click)="dismissExport()">close</button>
+      </div>
+      <textarea readonly [value]="report.text" rows="10" aria-label="The exported links"></textarea>
+      @if (report.uncertain.length) {
+        <p class="warnp">
+          {{ report.uncertain.length }} uncertain match(es) are comments, not links, so pasting skips
+          them on purpose:
+          @for (u of report.uncertain; track u.songId) {
+            <span class="chipgap">{{ u.title }} → {{ u.url }}</span>
+          }
+        </p>
+      }
+      @if (report.unmatched.length) {
+        <p class="muted">
+          Listed but unmatched — they are in the export as comments so the list cannot quietly look
+          complete:
+          @for (u of report.unmatched; track u.songId) {
+            <span class="chipgap">{{ u.title }}</span>
+          }
+        </p>
+      }
+    </div>
+  }
+
+  @if (total() > page) {
+    <div class="pager">
+      <button class="ghost" [disabled]="api.offset() === 0" (click)="prev()">← prev</button>
+      <button class="ghost" [disabled]="to() >= total()" (click)="next()">next →</button>
+    </div>
+  }
+}

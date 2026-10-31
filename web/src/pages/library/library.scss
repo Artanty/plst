@@ -1,0 +1,294 @@
+/* Scoped by hand: this replaces Angular's emulated encapsulation, whose class names
+   (.head, .muted, .err, .list, .export, …) are reused across pages. */
+.page-library {
+  .head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 18px;
+    flex-wrap: wrap;
+
+    h1 {
+      font-size: 20px;
+      margin: 0;
+    }
+  }
+
+  .search {
+    flex: 1;
+    min-width: 220px;
+    padding: 8px 11px;
+    border: 1px solid #d3d7de;
+    border-radius: 6px;
+    font-size: 14px;
+  }
+
+  .facets {
+    display: grid;
+    gap: 14px;
+    margin-bottom: 20px;
+  }
+
+  .facet {
+    h2 {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.7px;
+      color: #737a86;
+      margin: 0 0 6px;
+    }
+  }
+
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+
+    &.scroll {
+      max-height: 78px;
+      overflow: auto;
+    }
+  }
+
+  .chip {
+    border: 1px solid #d3d7de;
+    background: #fff;
+    border-radius: 14px;
+    padding: 3px 10px;
+    font-size: 12px;
+    cursor: pointer;
+
+    .n {
+      color: #9aa1ad;
+      font-variant-numeric: tabular-nums;
+    }
+
+    &:hover {
+      border-color: #a8b0bd;
+    }
+
+    &.on {
+      background: #14161a;
+      border-color: #14161a;
+      color: #fff;
+
+      .n {
+        color: #ffce00;
+      }
+    }
+  }
+
+  .count {
+    color: #737a86;
+    font-size: 13px;
+    margin: 0 0 10px;
+  }
+
+  .songs {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+
+    th {
+      text-align: left;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: #737a86;
+      border-bottom: 1px solid #e2e6ec;
+      padding: 6px 8px;
+    }
+
+    td {
+      padding: 7px 8px;
+      border-bottom: 1px solid #eef1f5;
+    }
+
+    .title {
+      font-weight: 500;
+    }
+
+    .artists,
+    .album {
+      color: #626a77;
+    }
+
+    .num {
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+      color: #626a77;
+    }
+
+    tbody tr:hover {
+      background: #f7f9fc;
+    }
+  }
+
+  .pager {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    margin-top: 16px;
+  }
+
+  .muted {
+    color: #737a86;
+    font-size: 13px;
+  }
+
+  .err {
+    color: #b3261e;
+    font-size: 13px;
+  }
+
+  .pick {
+    width: 28px;
+    text-align: center;
+  }
+
+  tr.picked {
+    background: #fffdf3;
+  }
+
+  .selbar {
+    position: sticky;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 14px;
+    padding: 10px 12px;
+    background: #14161a;
+    color: #fff;
+    border-radius: 8px;
+    font-size: 13px;
+
+    strong {
+      color: #ffce00;
+    }
+
+    .name {
+      flex: 1;
+      min-width: 160px;
+      padding: 6px 9px;
+      border: 1px solid #33373f;
+      border-radius: 6px;
+      background: #1d2026;
+      color: #fff;
+      font-size: 13px;
+    }
+
+    button,
+    select {
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 13px;
+      cursor: pointer;
+    }
+
+    .ghost {
+      background: transparent;
+      border: 1px solid #4a4f59;
+      color: #cfd4dc;
+    }
+
+    .msg {
+      flex-basis: 100%;
+      color: #cfd4dc;
+    }
+  }
+
+  .msg.standalone {
+    color: #3f7d3f;
+    font-size: 13px;
+    margin: 12px 0 0;
+  }
+
+  .linky {
+    border: none;
+    background: none;
+    padding: 0;
+    color: #1a56c4;
+    cursor: pointer;
+    font-size: 12px;
+    text-decoration: underline;
+
+    &:disabled {
+      color: #9aa1ad;
+      cursor: default;
+      text-decoration: none;
+    }
+  }
+
+  .selbar .spacer {
+    flex: 1;
+  }
+
+  .export {
+    margin-top: 14px;
+    padding: 12px;
+    border: 1px solid #d3d7de;
+    border-radius: 8px;
+    background: #fbfcfe;
+
+    .head {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 8px;
+      font-size: 13px;
+
+      strong {
+        color: #14161a;
+      }
+
+      .warn {
+        color: #b3261e;
+      }
+
+      .spacer {
+        flex: 1;
+      }
+
+      button {
+        padding: 5px 10px;
+        border-radius: 6px;
+        font-size: 13px;
+        cursor: pointer;
+
+        &.ghost {
+          background: transparent;
+          border: 1px solid #d3d7de;
+        }
+      }
+    }
+
+    textarea {
+      width: 100%;
+      box-sizing: border-box;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 12px;
+      padding: 8px;
+      border: 1px solid #d3d7de;
+      border-radius: 6px;
+      resize: vertical;
+    }
+
+    .chipgap {
+      display: inline-block;
+      margin: 2px 4px 0 0;
+      padding: 1px 7px;
+      border: 1px solid #d3d7de;
+      border-radius: 10px;
+      font-size: 11px;
+    }
+  }
+
+  .export .warnp {
+    color: #b3261e;
+    font-size: 12px;
+    margin: 8px 0 0;
+  }
+}

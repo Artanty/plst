@@ -1,0 +1,131 @@
+:host {
+  display: block;
+}
+
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 10px 20px;
+  background: #14161a;
+  color: #e8e9ec;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  flex-wrap: wrap;
+}
+
+.brand {
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: 0.4px;
+  color: #fff;
+  text-decoration: none;
+
+  span {
+    color: #ffce00;
+  }
+}
+
+nav {
+  display: flex;
+  gap: 4px;
+
+  a {
+    color: #b9bcc4;
+    text-decoration: none;
+    padding: 5px 11px;
+    border-radius: 5px;
+    font-size: 13px;
+
+    &:hover {
+      background: #22262d;
+      color: #fff;
+    }
+
+    &.on {
+      background: #2b313b;
+      color: #ffce00;
+    }
+  }
+}
+
+.spacer {
+  flex: 1;
+}
+
+.stat {
+  font-size: 12px;
+  color: #8b909b;
+  font-variant-numeric: tabular-nums;
+}
+
+.switcher select {
+  background: #22262d;
+  color: #e8e9ec;
+  border: 1px solid #343a45;
+  border-radius: 5px;
+  padding: 5px 8px;
+  font-size: 13px;
+}
+
+.badge {
+  display: inline-block;
+  margin-left: 5px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: #3d4553;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 15px;
+
+  &.warn {
+    background: #ffce00;
+    color: #14161a;
+  }
+}
+
+.sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+main {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 22px 20px 90px;
+}
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 18px;
+  transform: translateX(-50%);
+  background: #14161a;
+  color: #e8e9ec;
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  box-shadow: 0 6px 24px rgb(0 0 0 / 28%);
+  display: flex;
+  gap: 10px;
+  align-items: center;
+
+  a {
+    color: #ffce00;
+    font-weight: 600;
+  }
+}
+
+/* The users-gate error line. Named `.load-err` (not `.err`) to match web/ — the pages own
+   `.err` in their own scoped styles. */
+.load-err {
+  color: #b3261e;
+  font-size: 13px;
+  margin: 18px 0;
+}

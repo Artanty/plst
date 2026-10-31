@@ -1,0 +1,162 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <style>
+    body { font: 13px/1.45 -apple-system, "Segoe UI", sans-serif; width: 360px; margin: 0; padding: 12px; }
+    h1 { font: 600 13px -apple-system, sans-serif; margin: 0 0 8px; }
+    p { color: #555; margin: 0 0 10px; font-size: 12px; }
+    button { width: 100%; padding: 8px; border: 0; border-radius: 4px; cursor: pointer;
+             background: #fc0; color: #000; font-weight: 600; }
+    button:disabled { background: #ddd; color: #888; cursor: wait; }
+    button.secondary { background: #eee; color: #333; font-weight: 500; }
+    button + button { margin-top: 6px; }
+    /* The scan row: the primary button flexes, the pause/stop icon group sits beside it and only
+       exists while a scan is running. */
+    .scanrow { display: flex; gap: 6px; }
+    .scanrow > #scan { flex: 1; }
+    /* :not(.hidden) matters: a bare #scanControls{display:flex} would OUTRANK .hidden on
+       specificity (id beats class) and show the controls even while the scan button is up. */
+    #scanControls:not(.hidden) { display: flex; gap: 6px; }
+    #scanControls button { width: auto; margin-top: 0; padding: 8px 14px; }
+    #msg { white-space: pre-wrap; font: 11px/1.4 ui-monospace, monospace; background: #f5f5f5; padding: 8px;
+           border-radius: 4px; margin-top: 8px; max-height: 160px; overflow: auto; }
+    #log { white-space: pre-wrap; font: 11px/1.4 ui-monospace, monospace; background: #f0f0f0; padding: 6px;
+           border-radius: 4px; margin-top: 8px; max-height: 90px; overflow: auto; }
+    #out { box-sizing: border-box; width: 100%; min-height: 110px; font: 11px/1.4 ui-monospace, monospace;
+           margin-top: 8px; }
+    #diaglog { white-space: pre-wrap; font: 10px/1.35 ui-monospace, monospace; background: #f0f0f4;
+               padding: 6px; border-radius: 4px; margin: 6px 0 0; max-height: 190px; overflow: auto; }
+    #server { box-sizing: border-box; width: 100%; padding: 6px; font: 11px/1.4 ui-monospace, monospace;
+              border: 1px solid #ddd; border-radius: 4px; margin-bottom: 6px; }
+    /* Two quick-set buttons side by side — the `width:100%` above stacks everything otherwise. */
+    .row { display: flex; gap: 6px; }
+    .row button { flex: 1; margin-top: 0; }
+    #serverStatus { white-space: pre-wrap; font: 11px/1.4 ui-monospace, monospace; background: #f5f5f5;
+                    padding: 6px; border-radius: 4px; margin: 6px 0 0; }
+    details { margin-top: 8px; }
+    summary { cursor: pointer; font-size: 12px; color: #555; }
+    #sum { font: 11px/1.4 ui-monospace, monospace; background: #f5f5f5; padding: 6px; border-radius: 4px;
+           margin: 6px 0; white-space: pre-wrap; }
+    #res { list-style: none; margin: 6px 0 0; padding: 0; max-height: 260px; overflow: auto; }
+    #res li { padding: 5px 6px; border-bottom: 1px solid #eee; font-size: 11px; }
+    #res a { color: #1155cc; text-decoration: none; }
+    #res .no { color: #999; }
+    #res .flag { color: #c60; font-weight: 700; }
+    #res .meta { color: #777; font: 10px/1.3 ui-monospace, monospace; }
+    .hidden { display: none; }
+
+    /* Top-level tabs. Scan is the action, settings is touched rarely, logs is evidence you only
+       open when something has already gone wrong — three panels beats one long scroll. */
+    .tabs { display: flex; gap: 4px; margin: 0 0 12px; border-bottom: 1px solid #ddd; }
+    .tabs button { flex: 1; width: auto; padding: 7px 0; background: #eee; color: #555; font-weight: 500;
+                   border-radius: 4px 4px 0 0; margin-top: 0; }
+    .tabs button + button { margin-top: 0; }
+    .tabs button[aria-selected="true"] { background: #fc0; color: #000; font-weight: 600; }
+    .panel { display: none; }
+    .panel.active { display: block; }
+    /* The two interval inputs sit side by side. */
+    .intervals label { display: block; font-size: 12px; color: #555; margin-top: 8px; }
+    .intervals input { width: 90px; padding: 4px; font: 11px ui-monospace, monospace;
+                       border: 1px solid #ddd; border-radius: 4px; }
+    .meta { color: #777; font: 10px/1.3 ui-monospace, monospace; }
+  </style>
+</head>
+<body>
+  <nav class="tabs" role="tablist">
+    <button id="tab-scan" role="tab" aria-selected="true" aria-controls="panel-scan" data-panel="scan">Scan</button>
+    <button id="tab-settings" role="tab" aria-selected="false" aria-controls="panel-settings" data-panel="settings">Settings</button>
+    <button id="tab-logs" role="tab" aria-selected="false" aria-controls="panel-logs" data-panel="logs">Logs</button>
+  </nav>
+
+  <!-- ------------------------------------------------------------------- scan tab -->
+  <section id="panel-scan" class="panel active" role="tabpanel" aria-labelledby="tab-scan">
+    <h1>Scan current Yandex Music tab</h1>
+    <p>Open this while a music.yandex.ru playlist/album is rendered. Reads DOM rows only — no API, no
+       token, so it can never WAF-403. Then save the tracks to your plst library, or convert them to
+       YouTube Music links with your plst server.</p>
+    <button id="scan">1 · Scan tab</button>
+    <!-- While the walk runs, "Scan tab" is replaced by the two things you can do to a RUNNING
+         scan: hold it (pause keeps the scroll position and what has been collected) or kill it. -->
+    <div id="scanControls" class="hidden" role="group" aria-label="scan in progress">
+      <button id="pauseScan" class="secondary" title="pause the walk" aria-label="pause">⏸</button>
+      <button id="stopScanTop" class="secondary" title="stop parsing" aria-label="stop">⏹</button>
+    </div>
+    <button id="import" disabled>2 · Import into my library</button>
+    <button id="convert" disabled>3 · Convert with plst → YouTube Music</button>
+
+    <div id="msg">idle — open a playlist or album first.</div>
+    <p style="margin:6px 0 0">Scanning only reads the page. Nothing is saved until you press
+      <b>2 · Import into my library</b> — that is the step that writes to the database.</p>
+    <div id="sum" class="hidden"></div>
+    <ul id="res" class="hidden"></ul>
+    <button id="copyLinks" class="secondary hidden">Copy YouTube Music links</button>
+    <a id="openJob" class="hidden" style="display:block;margin-top:6px;font-size:12px" target="_blank">open full report ↗</a>
+
+    <details style="margin-top:10px">
+      <summary>raw JSON / step log</summary>
+      <button id="copyJson" class="secondary">Copy JSON to clipboard</button>
+      <button id="stopScan" class="secondary">Stop parsing</button>
+      <pre id="log">–– step log appears here as the walk goes ––</pre>
+      <textarea id="out" readonly placeholder="track JSON appears here, then copies to clipboard."></textarea>
+    </details>
+  </section>
+
+  <!-- --------------------------------------------------------------- settings tab -->
+  <section id="panel-settings" class="panel" role="tabpanel" aria-labelledby="tab-settings">
+    <details id="serverBox" open style="margin-top:0">
+      <summary>server &amp; user</summary>
+      <input type="text" id="server" spellcheck="false" placeholder="https://evidence-qulg.onrender.com">
+      <button id="saveServer" class="secondary">Save server URL</button>
+      <div class="row">
+        <button id="setRender" class="secondary" title="https://evidence-qulg.onrender.com">render (prod)</button>
+        <button id="setLocal" class="secondary" title="http://localhost:3218">local :3218</button>
+      </div>
+      <label style="display:block;margin-top:8px;font-size:12px;color:#555">
+        scanning as user id
+        <input type="number" id="userId" min="1" step="1" style="width:70px">
+      </label>
+      <div class="meta" style="margin-top:4px">Default https://evidence-qulg.onrender.com, user 1. The two buttons
+        above fill and save the URL; any other https:// host asks for permission when you convert.</div>
+      <pre id="serverStatus">backend not checked yet</pre>
+    </details>
+
+    <details id="scrapeBox" open>
+      <summary>yandex scraping intervals</summary>
+      <p class="meta" style="margin:0 0 6px">How long the DOM walk waits between moves, in
+        <b>milliseconds</b>. Lower is faster but risks reading rows that have not rendered yet;
+        higher is safer on a slow page. These reach the content script through
+        <code>chrome.storage.local</code>, because a content script runs on music.yandex.ru and
+        cannot read the extension's localStorage at all.</p>
+      <div class="intervals">
+        <label>step wait (each scroll move, down &amp; up)
+          <input type="number" id="stepWaitMs" min="0" max="10000" step="100"> ms</label>
+        <label>collect retry wait
+          <input type="number" id="retryWaitMs" min="0" max="10000" step="100"> ms</label>
+      </div>
+      <div class="meta" style="margin-top:6px">Defaults 1500 ms per scroll step, 1000 ms per
+        collect-retry. Clamped to 0–10000 ms. Applies to the next scan.</div>
+      <pre id="scrapeStatus">not saved yet</pre>
+    </details>
+  </section>
+
+  <!-- -------------------------------------------------------------------- logs tab -->
+  <section id="panel-logs" class="panel" role="tabpanel" aria-labelledby="tab-logs">
+    <details open style="margin-top:0">
+      <summary>diagnostics log</summary>
+      <p style="margin:0 0 6px">Kept across panel closes. Paste this into a bug report — it holds
+        the last 300 events, including every request and its status.</p>
+      <button id="shipLog" class="secondary">Upload logs to server</button>
+      <button id="copyLog" class="secondary">Copy logs to clipboard</button>
+      <button id="openLog" class="secondary">Open full log</button>
+      <button id="clearLog" class="secondary">Clear</button>
+      <pre id="logship">not sent yet</pre>
+      <pre id="diaglog">–– log appears here ––</pre>
+    </details>
+  </section>
+
+  <script src="log.js"></script>
+  <script src="ship.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

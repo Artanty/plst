@@ -1,0 +1,30 @@
+<section class="head">
+  <h1>Alerts</h1>
+  @if (unread() > 0) {
+    <button class="ghost" (click)="markAllRead()">mark all read ({{ unread() }})</button>
+  }
+</section>
+
+@if (data.isLoading()) {
+  <app-loader />
+} @else if (items().length === 0) {
+  <p class="muted">Nothing here. You get a notification when someone shares a playlist with you, or edits one you share.</p>
+} @else {
+  <ul class="list">
+    @for (n of items(); track n.id) {
+      <li [class.unread]="!n.is_read">
+        @if (link(n); as to) {
+          <a [routerLink]="to">
+            <span class="text">{{ notificationText(n) }}</span>
+            <span class="when">{{ timeAgo(n.created_at) }}</span>
+          </a>
+        } @else {
+          <div>
+            <span class="text">{{ notificationText(n) }}</span>
+            <span class="when">{{ timeAgo(n.created_at) }}</span>
+          </div>
+        }
+      </li>
+    }
+  </ul>
+}

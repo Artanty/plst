@@ -1,0 +1,52 @@
+<section class="head">
+  <h1>Playlists</h1>
+  <form class="new" (submit)="$event.preventDefault(); create()">
+    <input
+      type="text"
+      placeholder="new playlist name…"
+      [ngModel]="newName()"
+      (ngModelChange)="newName.set($event)"
+      name="name"
+      aria-label="New playlist name"
+    />
+    <button class="primary" type="submit" [disabled]="busy() || !newName().trim()">Create</button>
+  </form>
+  @if (message()) {
+    <p class="err">{{ message() }}</p>
+  }
+</section>
+
+@if (playlists.isLoading()) {
+  <app-loader />
+} @else {
+  <h2 class="section">Yours</h2>
+  <ul class="list">
+    @for (p of mine(); track p.id) {
+      <li>
+        <a [routerLink]="['/playlists', p.id]">
+          <span class="name">{{ p.name }}</span>
+          <span class="meta">{{ plural(p.item_count, 'track') }} · updated {{ timeAgo(p.updated_at) }}</span>
+        </a>
+      </li>
+    } @empty {
+      <li class="muted empty">No playlists yet. Build one from an import, or create an empty one above.</li>
+    }
+  </ul>
+
+  <h2 class="section">Shared with you</h2>
+  <ul class="list">
+    @for (p of shared(); track p.id) {
+      <li>
+        <a [routerLink]="['/playlists', p.id]">
+          <span class="name">{{ p.name }}</span>
+          <span class="meta">
+            by {{ p.owner_username }} · {{ plural(p.item_count, 'track') }} ·
+            <span [class.editable]="p.can_edit">{{ p.can_edit ? 'you can edit' : 'view only' }}</span>
+          </span>
+        </a>
+      </li>
+    } @empty {
+      <li class="muted empty">Nothing shared with you yet.</li>
+    }
+  </ul>
+}

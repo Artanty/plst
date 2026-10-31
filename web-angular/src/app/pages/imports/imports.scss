@@ -1,0 +1,166 @@
+.head {
+  margin-bottom: 18px;
+
+  h1 {
+    font-size: 20px;
+    margin: 0 0 4px;
+  }
+}
+
+.cards {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.card {
+  border: 1px solid #e2e6ec;
+  border-radius: 8px;
+  padding: 12px 14px;
+  background: #fff;
+
+  .row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  h2 {
+    font-size: 15px;
+    margin: 0 0 3px;
+  }
+}
+
+.meta {
+  color: #737a86;
+  font-size: 12px;
+  margin: 0;
+
+  a {
+    color: #1155cc;
+  }
+}
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgb(20 22 26 / 42%);
+}
+
+.drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(560px, 100%);
+  background: #fff;
+  box-shadow: -8px 0 30px rgb(0 0 0 / 18%);
+  padding: 18px 20px;
+  overflow: auto;
+  z-index: 20;
+
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+
+    h2 {
+      font-size: 16px;
+      margin: 0;
+    }
+  }
+
+  footer {
+    margin-top: 16px;
+    display: flex;
+    justify-content: flex-end;
+  }
+}
+
+.field {
+  display: block;
+  margin-bottom: 12px;
+
+  span {
+    display: block;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: #737a86;
+    margin-bottom: 4px;
+  }
+
+  input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 8px 10px;
+    border: 1px solid #d3d7de;
+    border-radius: 6px;
+    font-size: 14px;
+  }
+}
+
+.tracks {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid #eef1f5;
+  border-radius: 6px;
+  max-height: 46vh;
+  overflow: auto;
+
+  li + li {
+    border-top: 1px solid #eef1f5;
+  }
+
+  label {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 6px 10px;
+    font-size: 13px;
+    cursor: pointer;
+  }
+
+  .t {
+    font-weight: 500;
+  }
+
+  .a {
+    color: #626a77;
+    display: flex;
+    gap: 4px;
+
+    .feat::before {
+      content: 'feat. ';
+    }
+  }
+
+  .d {
+    margin-left: auto;
+    color: #9aa1ad;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .new {
+    background: #ffce00;
+    color: #14161a;
+    border-radius: 8px;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 0 6px;
+  }
+}
+
+.muted {
+  color: #737a86;
+  font-size: 13px;
+}
+
+.err {
+  color: #b3261e;
+  font-size: 13px;
+}

@@ -1,0 +1,60 @@
+/* Global baseline. Component styles own everything else; this is just the page frame. */
+:root {
+  color-scheme: light;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: #f6f7f9;
+  color: #14161a;
+  font: 14px/1.5 -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+
+button {
+  font: inherit;
+  cursor: pointer;
+}
+
+.primary {
+  background: #14161a;
+  color: #fff;
+  border: 1px solid #14161a;
+  border-radius: 5px;
+  padding: 6px 13px;
+  font-size: 13px;
+
+  &:hover:not(:disabled) {
+    background: #2b313b;
+  }
+
+  &:disabled {
+    background: #d5d9e0;
+    border-color: #d5d9e0;
+    color: #8b909b;
+    cursor: default;
+  }
+}
+
+.ghost {
+  background: #fff;
+  color: #3a4150;
+  border: 1px solid #d3d7de;
+  border-radius: 5px;
+  padding: 6px 11px;
+  font-size: 12px;
+
+  &:hover:not(:disabled) {
+    border-color: #a8b0bd;
+  }
+
+  &:disabled {
+    color: #a8b0bd;
+    cursor: default;
+  }
+}
+
+a {
+  color: #1155cc;
+}

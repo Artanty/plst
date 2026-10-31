@@ -1,0 +1,68 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>plst — extension log</title>
+  <style>
+    body { font: 13px/1.5 -apple-system, "Segoe UI", sans-serif; margin: 0; padding: 16px; background: #fbfbfd; }
+    h1 { font-size: 15px; margin: 0 0 4px; }
+    p.sub { color: #666; margin: 0 0 12px; font-size: 12px; }
+    .bar { display: flex; gap: 6px; align-items: center; margin-bottom: 10px; flex-wrap: wrap; }
+    button { padding: 6px 10px; border: 0; border-radius: 4px; cursor: pointer; background: #fc0;
+             color: #000; font-weight: 600; font-size: 12px; }
+    button.secondary { background: #eee; color: #333; font-weight: 500; }
+    button:disabled { background: #ddd; color: #888; cursor: not-allowed; }
+    label { font-size: 12px; color: #555; display: flex; align-items: center; gap: 4px; }
+    select, input[type=search] { font: 12px ui-monospace, monospace; padding: 4px 6px;
+                                  border: 1px solid #ddd; border-radius: 4px; }
+    #meta { font: 11px ui-monospace, monospace; color: #666; margin-left: auto; }
+    table { border-collapse: collapse; width: 100%; background: #fff; border: 1px solid #e5e5ea;
+            border-radius: 4px; overflow: hidden; }
+    th { text-align: left; font: 600 11px -apple-system, sans-serif; background: #f2f2f6;
+         padding: 6px 8px; border-bottom: 1px solid #e5e5ea; position: sticky; top: 0; }
+    td { font: 11px/1.45 ui-monospace, monospace; padding: 4px 8px;
+         border-bottom: 1px solid #f2f2f4; vertical-align: top; }
+    tr:last-child td { border-bottom: 0; }
+    td.t { white-space: nowrap; color: #888; }
+    td.lv { white-space: nowrap; font-weight: 700; }
+    td.sc { white-space: nowrap; color: #666; }
+    tr.warn td.lv { color: #b06000; }
+    tr.error td.lv { color: #c00; }
+    td.d { color: #333; word-break: break-word; }
+    .empty { padding: 24px; text-align: center; color: #888; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <h1>Extension log</h1>
+  <p class="sub">The last 300 events from the popup and the page content script, kept in
+    <code>chrome.storage.local</code> so they survive the popup closing. Copy this into a bug
+    report — it answers "did the button even fire" and "what did the server reply".</p>
+
+  <div class="bar">
+    <button id="copy">Copy all</button>
+    <button id="copyFiltered">Copy filtered</button>
+    <button id="refresh" class="secondary">Refresh</button>
+    <button id="clear" class="secondary">Clear</button>
+    <label>level
+      <select id="level">
+        <option value="debug">debug</option>
+        <option value="info" selected>info</option>
+        <option value="warn">warn</option>
+        <option value="error">error</option>
+        <option value="all">all</option>
+      </select>
+    </label>
+    <label>find <input type="search" id="find" placeholder="import, scan, 400…" size="18"></label>
+    <span id="meta"></span>
+  </div>
+
+  <table>
+    <thead><tr><th>time</th><th>level</th><th>scope</th><th>message</th><th>data</th></tr></thead>
+    <tbody id="rows"></tbody>
+  </table>
+  <div id="empty" class="empty" hidden>No entries yet. Open the extension popup and scan something.</div>
+
+  <script src="log.js"></script>
+  <script src="logs.js"></script>
+</body>
+</html>

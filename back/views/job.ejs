@@ -1,0 +1,44 @@
+<%- include('partials/head') %>
+<% const pct = job.total ? Math.floor(job.processed * 100 / job.total) : 0; %>
+<h2>Job <%= job.id %> <span class="badge <%= job.status %>"><%= job.status %></span></h2>
+<p class="muted"><%= job.mode %> · <%= job.source %></p>
+<% const PERFECT = 0.9995; %>
+<% if (job.error) { %><p class="badge failed"><%= job.error %></p><% } %>
+<p><%= job.processed %> / <%= job.total %> tracks processed</p>
+<div class="bar"><div style="width: <%= pct %>%"></div></div>
+
+<% if (summary && summary.length) { %>
+<h3>Summary</h3>
+<table>
+  <tr><th>Title</th><th>Matched</th><th>Uncertain</th><th>Not found</th><th>Dups</th><th>Links</th></tr>
+  <% for (const s of summary) { %>
+  <tr>
+    <td><%= s.title %></td>
+    <td><%= s.matched %></td><td><%= s.uncertain %></td><td><%= s.not_found %></td>
+    <td><%= s.skipped_dup %></td><td><%= s.links %></td>
+  </tr>
+  <% } %>
+</table>
+<p><a href="/job/<%= job.id %>?format=links">Plain link list</a> · <a href="/job/<%= job.id %>?format=json">JSON</a></p>
+<% } %>
+
+<h3>Tracks</h3>
+<table>
+  <tr><th>#</th><th>Yandex</th><th>YouTube Music</th><th>Score</th><th>Status</th></tr>
+  <% for (const it of items) { %>
+  <tr>
+    <td><%= it.position + 1 %></td>
+    <td><%= it.src_artist %> — <%= it.src_title %> <span class="muted">(<%= it.src_duration %>s)</span></td>
+    <td><% if (it.yt_video_id) { %><a href="https://music.youtube.com/watch?v=<%= it.yt_video_id %>"><%= it.yt_artist %> — <%= it.yt_title %></a><% } else { %>—<% } %></td>
+    <td><%= it.score != null ? it.score.toFixed(2) : '' %>
+      <%# Same rule as the CLI: a non-perfect score is never "just fine", it wants a human look. %>
+      <% if (it.score != null && it.score > 0 && it.score < PERFECT) { %>⚠<% } %></td>
+    <td><span class="badge <%= it.status %>"><%= it.status %></span></td>
+  </tr>
+  <% } %>
+</table>
+
+<% if (job.status === 'pending' || job.status === 'running') { %>
+<script>setTimeout(() => location.reload(), 3000);</script>
+<% } %>
+<%- include('partials/tail') %>

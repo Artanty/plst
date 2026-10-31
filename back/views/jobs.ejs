@@ -1,0 +1,17 @@
+<%- include('partials/head') %>
+<h2>Jobs</h2>
+<% if (!jobs.length) { %><p class="muted">No jobs yet.</p><% } %>
+<table>
+  <tr><th>ID</th><th>Mode</th><th>Source</th><th>Status</th><th>Processed</th><th></th></tr>
+  <% for (const j of jobs) { %>
+  <tr>
+    <td><%= j.id %></td>
+    <td><%= j.mode %></td>
+    <td><%= j.source %></td>
+    <td><span class="badge <%= j.status %>"><%= j.status %></span></td>
+    <td><%= j.processed %>/<%= j.total %></td>
+    <td><a href="/job/<%= j.id %>">open</a></td>
+  </tr>
+  <% } %>
+</table>
+<%- include('partials/tail') %>

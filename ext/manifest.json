@@ -1,0 +1,44 @@
+{
+  "manifest_version": 3,
+  "name": "plst",
+  "version": "0.5.3",
+  "description": "Reads the rendered track list from a Yandex Music playlist/album tab (DOM only \u2014 no Yandex API, no token, cannot WAF-403) and either converts it to YouTube Music links via a plst server, or imports it into your plst library.",
+  "minimum_chrome_version": "116",
+  "permissions": [
+    "clipboardWrite",
+    "sidePanel",
+    "storage"
+  ],
+  "host_permissions": [
+    "http://127.0.0.1/*",
+    "http://localhost/*",
+    "https://evidence-qulg.onrender.com/*",
+    "https://music.yandex.ru/*",
+    "https://music.yandex.kz/*"
+  ],
+  "optional_host_permissions": [
+    "https://*/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "*://music.yandex.ru/*",
+        "*://music.yandex.kz/*"
+      ],
+      "js": [
+        "log.js",
+        "content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "side_panel": {
+    "default_path": "popup.html"
+  },
+  "action": {
+    "default_title": "plst"
+  }
+}

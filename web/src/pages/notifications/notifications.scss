@@ -1,0 +1,66 @@
+/* Scoped by hand: this replaces Angular's emulated encapsulation, whose class names
+   (.head, .muted, .err, .list, .export, …) are reused across pages. */
+.page-notifications {
+  .head {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 16px;
+
+    h1 {
+      font-size: 20px;
+      margin: 0;
+    }
+  }
+
+  .list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 5px;
+
+    a,
+    > div {
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+      padding: 9px 12px;
+      border: 1px solid #e2e6ec;
+      border-radius: 7px;
+      background: #fff;
+      text-decoration: none;
+      color: inherit;
+    }
+
+    a:hover {
+      border-color: #a8b0bd;
+    }
+
+    li.unread {
+      border-left: 3px solid #ffce00;
+
+      > a,
+      > div {
+        background: #fffdf5;
+        border-left: 0;
+      }
+
+      .text {
+        font-weight: 600;
+      }
+    }
+
+    .when {
+      margin-left: auto;
+      color: #9aa1ad;
+      font-size: 12px;
+      white-space: nowrap;
+    }
+  }
+
+  .muted {
+    color: #737a86;
+    font-size: 13px;
+  }
+}

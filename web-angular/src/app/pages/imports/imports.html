@@ -1,0 +1,92 @@
+<section class="head">
+  <h1>Imports</h1>
+  <p class="muted">
+    Every scan the extension sends lands here first. Nothing is in a playlist until you say so — that
+    is the whole point of the queue.
+  </p>
+</section>
+
+@if (imports.isLoading()) {
+  <app-loader />
+} @else if ((imports.value()?.imports ?? []).length === 0) {
+  <p class="muted">
+    Nothing pending for <strong>{{ sessionUser() }}</strong>. Scan a playlist in the extension and press
+    “Import to my library”, and it will show up here.
+  </p>
+} @else {
+  <ul class="cards">
+    @for (imp of imports.value()!.imports; track imp.id) {
+      <li class="card">
+        <div class="row">
+          <div>
+            <h2>{{ imp.source_label ?? 'Scanned playlist' }}</h2>
+            <p class="meta">
+              {{ plural(imp.item_count, 'track') }} · {{ imp.new_song_count }} new to the library ·
+              scanned {{ timeAgo(imp.created_at) }}
+              @if (imp.page_url) {
+                · <a [href]="imp.page_url" target="_blank" rel="noopener">source</a>
+              }
+            </p>
+          </div>
+          <button class="primary" (click)="open(imp.id, imp.source_label, imp.item_count)">Build playlist</button>
+        </div>
+      </li>
+    }
+  </ul>
+}
+
+@if (openId() !== null) {
+  <div class="overlay" (click)="close()"></div>
+  <section class="drawer" role="dialog" aria-label="Build a playlist from this import">
+    <header>
+      <h2>Build a playlist</h2>
+      <button class="ghost" (click)="close()">close</button>
+    </header>
+
+    @if (detail.isLoading()) {
+      <app-loader label="loading tracks…" />
+    } @else if (detail.error()) {
+      <p class="err">could not load this import: {{ detail.error()?.message }}</p>
+    } @else {
+      <label class="field">
+        <span>Playlist name</span>
+        <input type="text" [ngModel]="name()" (ngModelChange)="name.set($event)" [placeholder]="suggestedName()" />
+      </label>
+
+      <p class="meta">
+        {{ selectedCount() }} of {{ (detail.value()?.tracks ?? []).length }} selected · untick anything you
+        do not want
+      </p>
+
+      <ul class="tracks">
+        @for (t of detail.value()?.tracks ?? []; track t.id) {
+          <li>
+            <label>
+              <input type="checkbox" [checked]="!isExcluded(t.id)" (change)="toggle(t.id)" />
+              <span class="t">{{ t.title }}</span>
+              <span class="a">
+                @for (ar of t.artists; track ar.id) {
+                  <span [class.feat]="ar.role !== 'main'">{{ ar.name }}</span>
+                }
+              </span>
+              <span class="d">{{ durationText(t.duration_s) }}</span>
+              @if (t.isNew) {
+                <span class="new">new</span>
+              }
+            </label>
+          </li>
+        }
+      </ul>
+
+      @if (message()) {
+        <p class="err">{{ message() }}</p>
+      }
+
+      <footer>
+        <button class="primary" [disabled]="busy() || selectedCount() === 0" (click)="build()">
+          {{ busy() ? 'creating…' : 'Create playlist' }}
+        </button>
+      </footer>
+    }
+  </section>
+}

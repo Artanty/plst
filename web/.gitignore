@@ -1,0 +1,26 @@
+# Compiled output
+/dist
+/tmp
+/out-tsc
+
+# Node
+/node_modules
+npm-debug.log
+yarn-error.log
+
+# Editors
+.idea/
+.settings/
+*.sublime-workspace
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+.history/*
+
+# Test / tooling output
+/coverage
+.sass-cache/
+
+# System files
+.DS_Store
+Thumbs.db

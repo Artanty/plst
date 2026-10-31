@@ -1,0 +1,12 @@
+{
+  "name": "plst-ext",
+  "private": true,
+  "version": "0.1.1",
+  "description": "extension web surface + its walk tests",
+  "scripts": {
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.44.0"
+  }
+}
