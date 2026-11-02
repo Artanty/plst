@@ -184,3 +184,81 @@ a pathspec-limited commit; leaves an `MM` index residue — cleared with `git ad
 **Verify**: back 121 tests + lint, web tsc + 68 tests, ext 47/47 — all green before committing
 (no code changed during the commit session itself). `input/` left untracked on purpose.
 **User: restart the backend once** so boot applies the `match_status` migration.
+
+---
+
+## 2026-11-01 — PLAN (rule 1): personal knowledge library at `~/server/know` (index + entries, no discovery layer)
+
+**Request:** "in know folder i want to make smth like knowledge library… main .md document with
+links to single cases. And folder with separate files, each is a knowledge entry. In future in
+new project i want to say smth like 'read about deploy slave in know@'."
+
+**Approach (user chose from the presented options):** location **`/Users/artyomantoshkin/server/know`**
+(sibling of `plst`, outside any repo — same reach from every project), discovery **none** (pure
+files, explicit path references; entries stay plain markdown, portable across agent tools — ZCode,
+OpenCode, anything that can read a file). Skills (`SKILL.md` per entry) were considered and
+rejected for now — reference notes aren't really skills; a `know@slug` convention line in
+`~/.zcode/AGENTS.md` or a launcher skill can be layered on later without restructuring.
+
+1. `know/README.md` — the main doc: what it is, exact usage phrasings (absolute paths), how to
+   add an entry, and the **index**: one line per entry (`[slug](entries/slug.md) — one-liner`).
+2. `know/entries/_template.md` — copy-me template; `When to use:` is the first line after the
+   title so relevance is judgeable instantly; then Context / Steps·facts / Gotchas / Related.
+   No frontmatter — filename IS the slug.
+3. `know/entries/deploy-slave.md` — first entry, **skeleton only** (Goal / Prerequisites /
+   Steps / Verification / Gotchas with `<fill in>` markers); no invented facts — the real
+   content is the user's to write.
+4. No git setup inside `know/`, no commits anywhere (rule 5). RESULT below.
+
+### RESULT — library scaffolded
+
+`/Users/artyomantoshkin/server/know/` created and verified via `ls -laR`: `README.md` (index +
+usage phrasings + add-entry how-to), `entries/_template.md`, `entries/deploy-slave.md`
+(skeleton). Nothing committed; `know/` has no git.
+
+## 2026-11-01 — PLAN (rule 1): fill `know/entries/deploy-slave.md` from the real infrastructure
+
+**Request:** user described the deploy pipeline (main-acc repos with web/+back/ folders;
+githooklib bumps a 6-digit version and pushes on a "-d" commit suffix; flow GitHub App detects
+changed folder and runs the serf action; serf asks safe-project-database for the slave repo +
+envs + endpoint config; private slave repos on 'main' with secrets inline in .env; endpoints:
+vercel/render/other or Timeweb VDS per server/note) and asked to **check it against the code**
+in server/{githooklib,flow,serf,note}, structure it, ask questions, and produce the complete
+knowledge entry.
+
+**Approach:** 3 parallel Explore agents — (1) githooklib + githooklib-test + plst usage,
+(2) flow, (3) serf + note/note2 + safe. Verify each claim (esp. the 6-digit version scheme,
+"-d" detection rule, safe db record shape, conditional vercel/render config creation, master vs
+main), then read the load-bearing files myself; ask the user only what code can't answer; write
+the entry; update the know/README index line. RESULT below.
+
+### RESULT — `deploy-slave` entry written from verified infrastructure code
+
+Done. Explored directly (Explore agents were rate-limited): githooklib (README, both hooks,
+version-utils, tag-utils), flow (webhook.ts, validation.ts, README), serf deploy.yml (full),
+safe (README, openapi, routes, structuredController), note action.yml, note2 (listing), plst
+usage (`git config core.hooksPath` currently UNSET in plst — hooks not active right now;
+`build/package.json` has githooklib ^2.1.1).
+
+**Corrections to the user's description, verified in code and written into the entry:**
+1. "-d appended" → actually `.includes('-d')` anywhere in the message (tag-utils.js:58) — any
+   message containing the substring deploys.
+2. "6 digits" → 6-component tag `v{back.M.m.p}.{web.M.m.p}` in build/.env; per-folder
+   package.json patch bumps happen on EVERY commit with folder changes, not only -d ones;
+   -d only gates push+tag.
+3. "flow sees what changed (back or web)" → not a file diff: flow compares the new tag's
+   components against the repo's previous valid tag (validation.ts:57); back triple up → back,
+   web triple up → web.
+4. Two services the description omitted: **stat@** (per-stage deploy telemetry: PUSH_MASTER /
+   GET_SAFE / PUSH_SLAVE / UNKNOWN) and **key@back** (optional runner-registration + scoped
+   safe API key).
+5. note (Timeweb example) triggers on **tag push**, not on 'main' — documented as-is.
+6. safe's `/safe/get/v2` merges project_data EAV rows (stage DEPLOY/RUNTIME/SAFE, empty stage =
+   all stages) + slave repo GIT_* + hosting SERVICE_*; vercel.json only for back (web carries
+   its own), render.yaml both, env.js for surge; `.env`/`env.js` stripped from .gitignore so
+   secrets commit into the private slave on branch `main`.
+
+Entry: `know/entries/deploy-slave.md` (pipeline diagram, per-step mechanics with file:line
+refs, conventions, deploy procedure, new-project checklist, verification via stat@/serf logs/
+githooklib logs, gotchas incl. the `-d` substring trap and tag-collision failure). know/README
+index line updated. Nothing committed (rule 5).

@@ -1,0 +1,11 @@
+{
+  "owner": "prtolem",
+  "slug": "yandex-music",
+  "displayName": "Yandex Music",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1773056770984,
+    "commit": "https://github.com/openclaw/skills/commit/2d61a103b624d699754e42d7f74199b3b5606867"
+  },
+  "history": []
+}
