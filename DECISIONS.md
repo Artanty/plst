@@ -216,6 +216,24 @@ rejected for now — reference notes aren't really skills; a `know@slug` convent
 usage phrasings + add-entry how-to), `entries/_template.md`, `entries/deploy-slave.md`
 (skeleton). Nothing committed; `know/` has no git.
 
+## 2026-11-03 — PLAN (rule 1): untrack `build/node_modules` from git
+
+**Request:** "remove from git node_modules of build folder".
+
+**Approach:** `build/.gitignore` already gained a `node_modules` line (user edit, uncommitted);
+184 files under `build/node_modules` are still tracked. Run `git rm -r --cached build/node_modules`
+(index only — files stay on disk), verify nothing is tracked and nothing was deleted from the
+filesystem, stage the `.gitignore` change too. No commit (rule 5). RESULT below.
+
+### RESULT — `build/node_modules` untracked
+
+Done, staged only, nothing committed (rule 5). `git rm -r --cached build/node_modules` staged
+**184 deletions** (index only — all files remain on disk, `build/node_modules` still has its
+packages); `git add build/.gitignore` staged the user's `node_modules` ignore line so the files
+can't come back. Verified: `git ls-files build/node_modules | wc -l` → **0**. Left uncommitted
+alongside the pre-existing `build/package.json`, `build/package-lock.json`, `web/index.html`,
+`DECISIONS.md` changes.
+
 ## 2026-11-01 — PLAN (rule 1): fill `know/entries/deploy-slave.md` from the real infrastructure
 
 **Request:** user described the deploy pipeline (main-acc repos with web/+back/ folders;
