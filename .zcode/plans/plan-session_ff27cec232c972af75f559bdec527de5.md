@@ -1,26 +1,28 @@
-Personal knowledge library at /Users/artyomantoshkin/server/know — plain files, index + entries, no discovery layer (user's choices).
+Round (user-amended): githooklib python versions (tested via `server/githooklib-test`); feat on the pipeline as python `back/`; serf `detect-tech-stack` step (all namespaces → `TECH_STACK` env, used by serf AND written into slave `.env`); serf VH-back via TECH_STACK; feat Cache-Control. **No safe changes** — stack info is detected, not stored.
 
-**Structure to create**
+## 1. githooklib python version support (`server/githooklib`)
 
-```
-/Users/artyomantoshkin/server/know/
-  README.md            # the main document: usage note + index of links to entries
-  entries/
-    _template.md       # copy-me template for every new entry
-    deploy-slave.md    # first entry, skeleton with sections to fill
-```
+- `lib/version-utils.js`: per-folder version source — `package.json` (unchanged) else `pyproject.toml` `[project] version` else single `__version__ = "…"` file. Reads (current/staged/HEAD via `git show`) and writes (patch bump, minor-reset → regex rewrite + `git add`) switch on detected source; missing web side already degrades to `0.0.0` (verified earlier). `package.json` → 2.2.0, CHANGELOG + README updated.
+- **Tests live in `server/githooklib-test`** (user: "i created it especially for it"): inspect its current shape, extend to a python case — `back/` with `pyproject.toml` (no package.json): commit → pre-commit bumps patch in pyproject, `TAG_VERSION=0.0.N.0.0.0` in build/.env; `-d` commit → branch+tag pushed, web triple `0.0.0`; manual minor bump resets patch; node-side regression: existing package.json behavior unchanged. NOT `npm publish`-ed (user's login); feat uses `file:../../githooklib` meanwhile.
 
-**Steps**
+## 2. feat restructure (`server/feat`)
 
-1. Per AGENTS.md rule 1 — append a PLAN entry to `plst/DECISIONS.md` describing this (matching the existing house style: Request / Approach).
-2. Create `know/README.md`:
-   - What it is: one file per knowledge case in `entries/`; this README is the index.
-   - Usage from any project, with exact phrasings to copy: "read /Users/artyomantoshkin/server/know/entries/deploy-slave.md and …" or "look up <topic> in /Users/artyomantoshkin/server/know/README.md first".
-   - How to add an entry: copy `entries/_template.md`, filename = slug (kebab-case), add one line to the index.
-   - Index section: one line per entry — `[deploy-slave](entries/deploy-slave.md) — <one-line description>`.
-3. Create `entries/_template.md`: `# Title`, `When to use:` line first (so any agent reading it immediately knows relevance), then Context / Steps·facts / Gotchas / Related links. Plain markdown, no frontmatter — stays portable across agent tools.
-4. Create `entries/deploy-slave.md`: skeleton only — Goal, Prerequisites, Steps, Verification, Gotchas — with clearly marked `<fill in>` placeholders and no invented facts (the real content about deploying the slave comes from you).
-5. Verify: `ls -R` the new folder, read the files back to confirm they render as intended.
-6. Per AGENTS.md rule 2 — append the RESULT entry to `plst/DECISIONS.md`. Nothing committed (rule 5); `know/` is outside the plst repo and gets no git setup unless you ask later.
+`back/` ← app.py, requirements.txt, features/ + new `pyproject.toml` (`[project] name="feat", version="0.0.1"`), NO package.json. `build/` with `file:../../githooklib` dep (npm install activates hooks). Root docs updated (README paths, AGENTS dev-server rule unchanged); branch `master`. Verify: hooksPath set; Flask (venv at `back/.venv`) serves `/` and `/version-display/v1/` from new layout.
 
-**Deliberately not done (documented as future upgrades, no restructuring needed):** a `know@slug` convention line in `~/.zcode/AGENTS.md`, a launcher skill, or per-entry skills — all can be layered on later if explicit path references get tiresome.
+## 3. serf `deploy.yml`: detect-tech-stack + VH-back
+
+- New step **"Detect tech stack"** (all namespaces, after checkout): file/dep-based detection with precedence — `angular.json` → `angular`; `composer.json`|`*.php` → `php`; `pyproject.toml`|`requirements.txt`|`*.py` → `python`; else `package.json`: `vue` dep → `vue`, `react` dep → `react`, else `node`; bare `index.html` w/o package.json → `static`. Sets `GITHUB_ENV:TECH_STACK`; logged in the run output.
+- `TECH_STACK=python` appended to the slave `.env` (Create .env step) — consumable by version-display later.
+- **VH-back branch**: `SERVICE_DOMAIN=='VH' && namespace=='back' && env.TECH_STACK=='python'` → generated slave workflow: push to `main`, `get_env` SSH envs, **no build**, rsync whole dir to slot (exclude `.git`, `.github`, `.venv`, `__pycache__`; note's flags, 5 attempts) + best-effort `ssh … touch tmp/restart.txt` (Passenger). The "not implemented" throw now covers only unexpected combos (e.g. VH+back+node). Existing VH-web workflow untouched; no `${{ }}` in generated files.
+- Script validation: outer YAML parses; both heredocs executed in temp dirs → inner YAMLs valid with expected steps.
+
+## 4. feat router: Cache-Control
+
+Versioned `/<feature>/v<n>/…` → `public, max-age=31536000, immutable`; `/latest`, `/manifest.json` → `no-cache`. Verified via curl headers.
+
+## 5. Docs & logs
+
+- know: `deploy-slave.md` (TECH_STACK step, VH-back path, python versioning) + `feat.md` (pipeline deploy, tag shape `v0.0.N.0.0.0`) updated.
+- DECISIONS: githooklib (has its own?), feat, serf, plst (cwd) — plan before/result after each.
+- User checklist: create feat GitHub repo + install flow App + safe records (slave repo, VH hosting, 4 SSH envs incl. single-line key); `npm publish` githooklib 2.2.0 when satisfied.
+- Nothing committed anywhere.

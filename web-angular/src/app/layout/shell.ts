@@ -27,6 +27,8 @@ export class Shell {
     this.usersAnswered() ? undefined : this.api.usersResource.error(),
   );
 
+  public readonly value1 = `${process.env['SERVICE_EMAIL']}`;
+
   constructor() {
     // The user list is the switcher's options, so it has to be loaded before it can be rendered.
     effect(() => {

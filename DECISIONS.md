@@ -280,3 +280,87 @@ Entry: `know/entries/deploy-slave.md` (pipeline diagram, per-step mechanics with
 refs, conventions, deploy procedure, new-project checklist, verification via stat@/serf logs/
 githooklib logs, gotchas incl. the `-d` substring trap and tag-collision failure). know/README
 index line updated. Nothing committed (rule 5).
+
+---
+
+## 2026-11-04 — PLAN (rule 1): new project `server/feat` — runtime web-component library (feat_URL/{feature}/v{n}/)
+
+**Request:** a lib of features: all versions accessible at once via `feat_URL/{feature}/v1/`;
+per-feature separate bundles loaded independently on demand at runtime (mfe-style); future
+feature-toggle without page reload; web-components so any framework works. Backend router in
+Python (Timeweb VH has PHP+Python free). First feature: `version-display` (the `deploy-info`
+element — attribute-driven, shadow-DOM badge). Canonical bundle URL is the bare-directory form
+`…/v1/` serving `index.js`.
+
+**Approach:** Flask (WSGI — Passenger-compatible on Timeweb) in new `~/server/feat`: routes
+`/<feature>/v<n>/` (→ index.js), `/<feature>/v<n>/<file>`, `/<feature>/latest` (302 to newest),
+`/manifest.json`, `/healthz`; CORS `*` + JS MIME on feature responses; traversal-guarded.
+Feature `features/version-display/v1/index.js`. AGENTS.md + DECISIONS.md per ~/server
+convention, git init, no commit. know entry `entries/feat.md` with the vision. Verify live:
+venv + Flask run + curl all URL forms + `node --check`; stop server after. RESULT below.
+
+### RESULT — feat project created, verified live
+
+Done. `/Users/artyomantoshkin/server/feat/`: `app.py` (Flask router — routes per plan, CORS `*`
+on everything, JS MIME forced, `send_from_directory` traversal guard + feature-name regex),
+`features/version-display/v1/index.js` (deploy-info element: attribute-driven, shadow DOM,
+one-liner + click-expand, silent without real version), `requirements.txt`, `README.md`,
+`AGENTS.md`, `DECISIONS.md`, `.gitignore`, `git init` (no commit). Verified live on :5099 —
+both bundle URL forms 200 text/javascript + CORS; /latest 302; /manifest correct; traversal
+and unknown feature → 404; multi-version temp test (v1+v3): manifest lists both, latest → v3;
+`node --check` clean; server stopped. know: `entries/feat.md` written (vision verbatim +
+current state + consumer snippets + gotchas), README index line added.
+
+---
+
+## 2026-11-04 (2) — PLAN (rule 1): python versioning in githooklib + feat-on-pipeline + serf detect-tech-stack
+
+**Request:** move feat app into `back/` to ride the standard pipeline; teach githooklib to
+bump python versions (pyproject.toml `version` / `__version__` file) instead of a fake
+package.json ("without web folder last 3 symbols will be zeros" — confirmed, existing code
+already degrades missing side to 0.0.0); test via `server/githooklib-test`. Plus serf
+`detect-tech-stack` step (ALL namespaces; angular/react/vue/static/node/python/php from
+files; exposed as `TECH_STACK` env + written into slave `.env` for version-display) and
+VH-back=python rsync+restart workflow. No safe changes (stack detected, not stored — user's
+call). feat router gets Cache-Control (versioned immutable / latest+manifest no-cache).
+
+**Approach:** (1) githooklib `lib/version-utils.js` per-folder version source:
+package.json (unchanged) → pyproject.toml → `__version__` py file; staged/HEAD via `git show`
+on the source path; bump/minor-reset = regex rewrite + git add; version 2.2.0 + CHANGELOG +
+README; tested live in githooklib-test (pre-commit bump w/o -d; post-commit -d push tested
+against a temporary local bare origin, restored after). (2) feat: back/ + pyproject.toml
+(0.0.1, NO package.json), build/ with `file:../../githooklib`, venv → back/.venv. (3) serf:
+detect-tech-stack step (angular.json → angular; composer.json|*.php → php;
+pyproject|requirements|*.py → python; package.json deps vue/react → vue/react else node;
+index.html w/o package.json → static) → GITHUB_ENV + `TECH_STACK=` line in slave .env;
+VH+back+python generated workflow (get_env SSH, no build, rsync whole dir minus
+.git/.github/.venv/__pycache__, 5 attempts, best-effort `touch tmp/restart.txt`); throw step
+now only for unexpected combos. (4) feat Cache-Control. know entries updated. Nothing
+committed; githooklib NOT npm-published (user's step). RESULT below.
+
+### RESULT — githooklib 2.2.0 python + feat pipeline-shape + serf detect-tech-stack/VH-back
+
+Done, nothing pushed/published anywhere. (1) **githooklib**: per-folder version source
+(package.json → pyproject.toml → `__version__` .py file), 2.2.0 + CHANGELOG + README; live-
+tested in githooklib-test per user instruction — python bump/minor-reset/-d-push (temp bare
+origin, restored), branch-guard refusal verified, node regression clean (web-only bump).
+(2) **feat**: restructured to back/ + pyproject.toml (no package.json) + build/ githooklib
+seat (file: dep until npm publish); two local commits, pyproject auto-bumped to 0.0.3,
+TAG_VERSION=0.0.3.0.0.0; Cache-Control added and live-verified (versioned immutable / latest
++ manifest no-cache). (3) **serf**: detect-tech-stack step (7 stacks, synthetic + real-dir
+tests all correct) exporting TECH_STACK to GITHUB_ENV and slave .env; VH-back python rsync+
+passenger-restart workflow; throws narrowed. (4) know entries updated. **User steps**: npm
+publish githooklib 2.2.0; create feat GitHub repo + install flow App; safe records (slave
+repo, VH hosting, 4 SSH envs, single-line key); first `-d` commit on feat master.
+
+## 2026-11-04 (3) — update githooklib to npm 2.2.0 across all projects
+
+**Result:** user published 2.2.0; set `^2.2.0` in build/ (and flow/back, githooklib-test/back)
+manifests of feat, chat, flow, key, plst, totp, safe, yaum, stat, githooklib-test; npm
+installed everywhere — all resolve 2.2.0 with hooks active. **Side effect: plst's
+`core.hooksPath` is SET again** (was unset since some earlier local change) — the pipeline is
+armed; a `-d` commit on plst master will now really deploy. Gotcha found twice: npm keeps a
+`file:` symlink + lockfile resolution after switching to a range — feat/build and
+githooklib-test/back needed `rm -rf node_modules package-lock.json` + fresh install. feat
+functional re-test with the npm copy: commit bumped pyproject 0.0.3→0.0.4, TAG_VERSION
+correct. Nothing committed.
