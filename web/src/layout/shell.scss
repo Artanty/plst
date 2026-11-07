@@ -94,17 +94,6 @@
     white-space: nowrap;
   }
 
-  /* Bottom-aligned in the bar so it reads like stat's corner version stamp without absolute
-     positioning (the bar wraps on narrow screens). */
-  .version {
-    align-self: flex-end;
-    font-size: 10px;
-    line-height: 1.4;
-    color: #8b909b;
-    font-variant-numeric: tabular-nums;
-    cursor: default;
-  }
-
   main {
     max-width: 1120px;
     margin: 0 auto;

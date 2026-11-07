@@ -1,28 +1,21 @@
-Round (user-amended): githooklib python versions (tested via `server/githooklib-test`); feat on the pipeline as python `back/`; serf `detect-tech-stack` step (all namespaces → `TECH_STACK` env, used by serf AND written into slave `.env`); serf VH-back via TECH_STACK; feat Cache-Control. **No safe changes** — stack info is detected, not stored.
+jump = public, self-bootstrapping node backend on the VDS, with first-class logging: app owns the WHAT (bootstrap + observability), systemd owns the WHEN (kept: boot/crash/deploy restart; deploy script only syncs + restarts).
 
-## 1. githooklib python version support (`server/githooklib`)
+## 0. Clean slate (one VDS session per contract): `userdel -r jump`
 
-- `lib/version-utils.js`: per-folder version source — `package.json` (unchanged) else `pyproject.toml` `[project] version` else single `__version__ = "…"` file. Reads (current/staged/HEAD via `git show`) and writes (patch bump, minor-reset → regex rewrite + `git add`) switch on detected source; missing web side already degrades to `0.0.0` (verified earlier). `package.json` → 2.2.0, CHANGELOG + README updated.
-- **Tests live in `server/githooklib-test`** (user: "i created it especially for it"): inspect its current shape, extend to a python case — `back/` with `pyproject.toml` (no package.json): commit → pre-commit bumps patch in pyproject, `TAG_VERSION=0.0.N.0.0.0` in build/.env; `-d` commit → branch+tag pushed, web triple `0.0.0`; manual minor bump resets patch; node-side regression: existing package.json behavior unchanged. NOT `npm publish`-ed (user's login); feat uses `file:../../githooklib` meanwhile.
+## 1. `~/server/jump/back` — node backend (public-repo-safe) + logging
 
-## 2. feat restructure (`server/feat`)
+- `package.json`: express + dotenv; `start`: `node app.js`; `build`: noop; `version 0.0.1` (githooklib source). Plain JS.
+- `lib/log.js` — tiny logger: timestamps, levels (info/warn/error), writes to stdout (journald captures it: `journalctl -u jump` reads it forever) AND keeps a bounded in-memory ring buffer (last ~200 lines) for the `/logs` endpoint.
+- `lib/bootstrap.js` — idempotent user/key ensure via `execFileSync` (args as arrays — no shell interpolation): each step logged with outcome — `user exists`, `useradd ok`, `.ssh ok`, `key line already present (no-op)` / `key line appended`, perms fixed; result summary logged; on failure logs the failing step + stderr and returns an error.
+- `app.js`: dotenv → **before `app.listen`**: run bootstrap (logged), store result; endpoints: `GET /healthz` → `ok`; `GET /status` → `{ok, userExists, keyPresent, options, bootstrappedAt, uptime, node version}`; `GET /logs` → ring buffer (plain text); request logging (method/path/status/ms) at info. Bootstrap failure → log + exit 1 (systemd state = failed, visible; journal has the cause).
+- README (architecture, env table, public-safety note, local dev, how to read logs — `journalctl -u jump -f` or `/logs`). Private `.jump_key`(+`.oneline`) local-only gitignored. `build/` githooklib seat + npm install; tags `v0.0.N.0.0.0`.
 
-`back/` ← app.py, requirements.txt, features/ + new `pyproject.toml` (`[project] name="feat", version="0.0.1"`), NO package.json. `build/` with `file:../../githooklib` dep (npm install activates hooks). Root docs updated (README paths, AGENTS dev-server rule unchanged); branch `master`. Verify: hooksPath set; Flask (venv at `back/.venv`) serves `/` and `/version-display/v1/` from new layout.
+## 2. serf: VDS-back generation split by prisma presence (generation-time check of `$WORKING_DIR/prisma/schema.prisma`)
 
-## 3. serf `deploy.yml`: detect-tech-stack + VH-back
+- with prisma → totp's exact workflow (unchanged).
+- without → slim: checkout → dotenv→GITHUB_ENV → env validation → `npm ci` → `npm run build` → scp whole folder to `/root/$SLOT/` → ssh: `npm install --omit=dev`, ensure systemd unit (`WorkingDirectory=/root/$SLOT`, `ExecStart=/usr/bin/env node app.js`, `Restart=always`) if missing, `daemon-reload`, `restart $SLOT`, 5-line status (so the deploy log itself shows healthy/failed).
+- `${{ '${{' }}` escapes; script-validated both variants (outer YAML, heredoc execution, inner YAML).
 
-- New step **"Detect tech stack"** (all namespaces, after checkout): file/dep-based detection with precedence — `angular.json` → `angular`; `composer.json`|`*.php` → `php`; `pyproject.toml`|`requirements.txt`|`*.py` → `python`; else `package.json`: `vue` dep → `vue`, `react` dep → `react`, else `node`; bare `index.html` w/o package.json → `static`. Sets `GITHUB_ENV:TECH_STACK`; logged in the run output.
-- `TECH_STACK=python` appended to the slave `.env` (Create .env step) — consumable by version-display later.
-- **VH-back branch**: `SERVICE_DOMAIN=='VH' && namespace=='back' && env.TECH_STACK=='python'` → generated slave workflow: push to `main`, `get_env` SSH envs, **no build**, rsync whole dir to slot (exclude `.git`, `.github`, `.venv`, `__pycache__`; note's flags, 5 attempts) + best-effort `ssh … touch tmp/restart.txt` (Passenger). The "not implemented" throw now covers only unexpected combos (e.g. VH+back+node). Existing VH-web workflow untouched; no `${{ }}` in generated files.
-- Script validation: outer YAML parses; both heredocs executed in temp dirs → inner YAMLs valid with expected steps.
+## 3. Acceptance (user): safe rows (SSH_HOST/SSH_USER=root/USER_PASS/REVERSED_PROXY_SLOT=jump/JUMP_USER/JUMP_PUBLIC_KEY/JUMP_KEY_OPTIONS) + public jump repo + flow App; commit+push serf; `-d` → deploy restarts service → startup recreates the deleted user (watch it live via the deploy's status output or `journalctl`/`/logs`); re-verify chain (ssh through jump → cs99850), then jump envs for feat/plst.
 
-## 4. feat router: Cache-Control
-
-Versioned `/<feature>/v<n>/…` → `public, max-age=31536000, immutable`; `/latest`, `/manifest.json` → `no-cache`. Verified via curl headers.
-
-## 5. Docs & logs
-
-- know: `deploy-slave.md` (TECH_STACK step, VH-back path, python versioning) + `feat.md` (pipeline deploy, tag shape `v0.0.N.0.0.0`) updated.
-- DECISIONS: githooklib (has its own?), feat, serf, plst (cwd) — plan before/result after each.
-- User checklist: create feat GitHub repo + install flow App + safe records (slave repo, VH hosting, 4 SSH envs incl. single-line key); `npm publish` githooklib 2.2.0 when satisfied.
-- Nothing committed anywhere.
+know updates (vds-jump-host: node service + envs + logging runbook; deploy-slave: prisma-split) + DECISIONS logs (jump/serf/plst). Nothing committed by me.

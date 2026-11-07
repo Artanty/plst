@@ -364,3 +364,233 @@ armed; a `-d` commit on plst master will now really deploy. Gotcha found twice: 
 githooklib-test/back needed `rm -rf node_modules package-lock.json` + fresh install. feat
 functional re-test with the npm copy: commit bumped pyproject 0.0.3→0.0.4, TAG_VERSION
 correct. Nothing committed.
+
+## 2026-11-05 (4) — jump service (~/server/jump) live
+VDS probe OPEN x3 -> restricted user `jump` (nologin + restrict,port-forwarding) + dedicated ed25519 key installed in exactly 2 sessions (contract kept); serf VH workflows re-gained optional SSH_JUMP_HOST/JUMP_SSH_PRIVATE_KEY (ssh_config/ProxyJump, absent = direct); full chain verified from local (whoami=cs99850). know: entries/vds-jump-host.md + links from deploy-slave + blacklist (marked historical). Private key only in safe (single-line, .jump_key.oneline, roundtrip OK). Nothing committed anywhere.
+
+## 2026-11-07 (2) — feat "Forbidden" follow-up: no Passenger on Timeweb VH — pyxy-style .htaccess is the serving pattern; **feat is LIVE**
+
+User reported `Forbidden` on https://feat.twc1.net/. Probes: Apache static behavior, raw
+index.wsgi. Host check: NO Passenger anywhere; the working python site (pyxy) serves via
+Apache `wsgi-script` handler in `.htaccess` (rewrite all to `/index.wsgi/$1`, wsgi chmod
+755). Applied on the host and in `feat/back` (`.htaccess` + exec bit, rsync ships both):
+`/healthz` 200, `/version-display/latest/js-web` 302→v2, v1 200 immutable+CORS, `/` 200.
+`tmp/restart.txt` is a Passenger no-op here. know (deploy-slave serving gotcha, feat) and
+feat/DECISIONS.md (2026-11-07 (5)) updated. Nothing committed.
+
+## 2026-11-07 — feat deploy failed: "No module named pip" on the VH host — fixed with slot venv
+
+User reported the failed `../feat` deploy. Log first: rsync over the jump host SUCCEEDED;
+the pip step died (`/usr/bin/python3: No module named pip`) and the workflow correctly did
+not restart. Probed the host live (deploy key pulled from safe's MySQL, SSH via jump):
+shell python is 3.6.9, no pip, `-m venv` broken (no ensurepip). Same box already had the
+proven pyxy pattern: slot `venv` via `virtualenv` + `sys.path.append(site-packages)` in
+`index.wsgi`. Fixed (details in `feat/DECISIONS.md` 2026-11-07 (4)): requirements floor pin
+`flask>=2.0`, quoted py3.6-incompatible annotations in `app.py`, `index.wsgi` venv pickup,
+serf VH-python pip step now creates `venv` (`virtualenv -p python3` — bare `virtualenv`
+picks py2, hit live) and installs with `venv/bin/pip`. Host fixed for now (venv built,
+Flask 2.0.3 in, restart touched, wsgi import verified live). **Remaining blocker is the
+panel: site feat.twc1.net still serves STATIC (raw index.wsgi = 200 source)** — user must
+set application type Python/Passenger + startup file `index.wsgi`. know entries
+(deploy-slave gotcha, feat) updated; nothing committed anywhere (rule 5).
+
+## 2026-11-07 (3) — PLAN (rule 1): version-display in the header of the Angular app (web-angular)
+
+**Request:** "implement version-display in header of plst app". The React `web/` already has it
+(`layout/VersionDisplay.tsx` + `core/app-version.ts` + a `.version` span in the header bar);
+`web-angular/` has none — only a leftover env-injection experiment (`shell.ts value1` /
+`{{value1}}` rendering `process.env['SERVICE_EMAIL']`, always empty).
+
+**Approach (parity with React, no remote feat dependency):**
+1. `web-angular/src/app/core/app-version.ts` (new): exported `TAG_VERSION = '0.0.0.0'` const
+   (committed default; the `export const TAG_VERSION = '…';` line format is load-bearing for a
+   future deploy-time sed, same contract as React's `src/config.ts`) + `appVersion()` returning
+   the injected value or `'0.0.0.0'`. No `import.meta.env` branch — the Angular builder has no
+   dev-env injection to mirror.
+2. `shell.ts`: remove the `value1` experiment; add `readonly version = appVersion()`.
+3. `shell.html`: remove `{{value1}}`; add `<span class="version" title="app version">{{ version() }}</span>`
+   after the switcher label (React renders its badge last in the header).
+4. `shell.scss`: `.version` copied from React's `web/src/layout/shell.scss` (10px, tabular-nums,
+   #8b909b).
+Verify: Angular build + unit tests green. RESULT below.
+
+### RESULT — Angular header shows the app version
+
+Done, nothing committed (rule 5). `web-angular/src/app/core/app-version.ts` (new; `TAG_VERSION`
+const + `appVersion()`), `shell.ts` (leftover `value1`/`process.env['SERVICE_EMAIL']` experiment
+removed, `readonly version = appVersion()` in), `shell.html` (`{{value1}}` removed, `<span
+class="version">` after the switcher label), `shell.scss` (`.version` copied from React).
+Verified: `ng build` clean (1.5s), **25/25 unit tests green**. The badge shows `0.0.0.0` locally;
+a deploy-time sed of the `export const TAG_VERSION = '…';` line (same contract as React's
+`web/src/config.ts`) would ship the real tag — no such step exists for web-angular yet. The React
+app was untouched (its version badge already shipped).
+
+## 2026-11-07 (4) — PLAN (rule 1): React web/ switches its header badge to feat's `deploy-info`
+
+**Request:** "i dont like that react app uses its own version display. i want to use feat's one."
+Verified live (curl via `--resolve`, local DNS fails for feat.twc1.net as usual):
+`https://feat.twc1.net/version-display/v1/js-web/` → 200 `text/javascript`, immutable, CORS `*`;
+`/latest/js-web` → 302 to v2. Element contract (read from the bundle): `<deploy-info
+version project namespace commit repo>` — shadow-DOM badge **fixed bottom-right**, click
+expands commit/repo rows; renders NOTHING for empty or `0.0.0(.0)` versions (dev stays clean).
+
+**Approach:**
+1. `web/index.html`: `<script src="https://feat.twc1.net/version-display/v1/js-web/"></script>`
+   (classic script, pinned v1 per the know-entry gotcha — never `/latest`).
+2. `web/src/layout/VersionDisplay.tsx`: same JSX name, but now renders
+   `<deploy-info version={appVersion()} project="plst" namespace="web" />` + the React-19
+   `IntrinsicElements` declaration for the custom element (TS). `config.ts` TAG_VERSION
+   (CI-injected) stays the version source — unchanged contract, new display.
+3. `web/src/layout/shell.scss`: drop the local `.version` block (the element brings its own
+   shadow styles). Shell.tsx untouched — `<VersionDisplay />` stays where it is; fixed
+   positioning takes the badge out of the header flow visually.
+Result: badge moves from the header bar to the bottom-right corner; dev builds go silent
+(`0.0.0.0`/git-describe `v…` are fine but the element is dark for `0.0.0(.0)`; if the script
+fails to load — e.g. this machine's broken DNS — nothing renders at all, by design).
+Verify: tsc + vitest + build. RESULT below.
+
+### RESULT — web/ renders feat's `deploy-info` instead of its own span
+
+Done, nothing committed (rule 5). `web/index.html` loads
+`https://feat.twc1.net/version-display/v1/js-web/` (classic script, pinned v1); `VersionDisplay.tsx`
+now returns `<deploy-info version={appVersion()} project="plst" namespace="web" />` with the
+React-19 `IntrinsicElements` augmentation (plain attribute-object type — the `Attributes &`/
+`DetailedHTMLProps` variants tripped noUnusedLocals, plain wins); the local `.version` block is
+gone from `shell.scss`; `VersionDisplay.spec.tsx` asserts the element's `version`/`project`/
+`namespace` attributes instead of a `.title="app version"` span. Verified: tsc clean,
+**68/68 vitest**, `vite build` ok. The badge now sits **fixed bottom-right** (the element owns its
+shadow styles — it left the header bar), expands on click, and stays dark for `0.0.0.0`/failed
+script loads (e.g. this machine's broken DNS for feat.twc1.net — verified 200 via `--resolve`).
+`config.ts` TAG_VERSION stays the version source. NOTE: `web-angular/` still shows its own local
+badge from 2026-11-07 (3) — switching it to `deploy-info` would need the script tag in
+`src/index.html` + `CUSTOM_ELEMENTS_SCHEMA` + `@ngx-env/builder` for TAG_VERSION (know/feat.md
+documents the Angular consumer pattern).
+
+## 2026-11-07 (5) — PLAN (rule 1): make the deploy-info integration dynamic (user picked ALL four)
+
+**Request:** "can we make it more dynamic? i dont like that we know a lot about its work" —
+then, on scope: auto-latest bundle + live toggle + fewer attributes + element fetches version
+itself. Discovery: the live feat router has **NO `/manifest.json`** (app.py docstring: "No
+manifest"; live 404; v2 ships only `index.js`) — the know entry is stale on that point. The
+`/<feature>/latest/<ns>` 302 exists but a cross-origin `fetch(…, redirect:'manual')` is opaque
+(can't read Location), so toggle polling needs the manifest route re-added.
+
+**Approach:**
+1. **feat** (`~/server/feat`, own DECISIONS.md entry):
+   - `back/app.py`: re-add `GET /manifest.json` → `{features: {<name>: {versions: [vN…],
+     latest: vN}}}` (no-cache, CORS `*`).
+   - `features/version-display/v3/js-web/` — **index.js = thin stable shell** (guards on
+     `customElements.get('deploy-info')`, defines once; later releases never redefine — the
+     class is only defined by the pinned shell) + **render.js = swappable logic module**
+     (default export `render(shadowRoot, data)`, markup ported from v2). Shell behavior:
+     attributes `src` (runtime JSON endpoint → `{version, project, namespace, commit, repo}`),
+     `manifest` (feat manifest URL), `refresh` (poll seconds, default 300), legacy direct attrs
+     still honored; `project` defaults to the hostname's first label; data precedence
+     direct attr > src fetch > hostname; silent without a real version (unchanged); on connect
+     it resolves latest from the manifest and `import()`s that version's render.js (fallback:
+     built-in renderer on any failure); polls the manifest and hot-swaps render.js on `latest`
+     change — **toggle without redefining the element**.
+2. **plst back**: `GET ${apiPrefix}/version` → `{version, project, namespace, commit, repo}`
+   from `process.env` (PROJECT_ID/NAMESPACE/COMMIT_MESSAGE/SLAVE_REPO) + `TAG_VERSION`;
+   `TAG_VERSION` falls back to parsing repo-root `build/.env` (githooklib-written, tracked) so
+   dev shows a real version; pure `parseTagEnv()` exported for tests; route added to
+   `requestLogSkipPrefixes` (the element polls it). Test: route returns env value; parse
+   function unit-tested.
+3. **plst web**: `index.html` script pinned to `…/version-display/v3/js-web/` (stable shell —
+   logic still auto-updates via manifest; avoids the "latest markup changed" trap);
+   `VersionDisplay.tsx` → `<deploy-info src="/api/version"
+   manifest="https://feat.twc1.net/version-display/manifest.json" />` — **no hardcoded
+   version/project/namespace anymore**; spec asserts the new attrs; `core/app-version.ts`
+   deleted (unused; `config.ts` TAG_VERSION line stays — the deploy sed contract survives);
+   `vite.config.ts` devTagVersion/define removed (only fed app-version).
+4. know/entries/feat.md: manifest is real again, v3 consumer pattern.
+**Ordering:** plst badge stays dark until feat v3 deploys (user step: `-d` commit on feat).
+Verify: feat venv smoke (manifest + v3 URLs + node --check), back tests+lint, web tsc+tests+build.
+RESULT below.
+
+### RESULT — dynamic deploy-info integration, proven live end to end
+
+Done, nothing committed (rule 5). plst now supplies NO version data at all — only two pointers.
+
+- **feat** (`~/server/feat`, details in feat/DECISIONS.md 2026-11-07 (6)): `/manifest.json`
+  re-added (it had been dropped in the pipeline restructure — know entry was stale), and
+  `version-display/v3/js-web/` — stable shell (`index.js`, defines the element once) +
+  swappable logic (`render.js`, adopted from the manifest's latest and hot-swapped on poll).
+- **plst back**: `back/src/lib/version.ts` (`tagVersion()` — env first, then repo-root
+  `build/.env` via pure `parseTagEnv`) + `GET /api/version` (keys = element attributes;
+  added to `requestLogSkipPrefixes`) + `test/version.test.ts`.
+- **plst web**: `index.html` pins `…/version-display/v3/js-web/`; `VersionDisplay.tsx` renders
+  `<deploy-info src="/api/version" manifest="…/manifest.json" />` — no hardcoded
+  version/project/namespace; `core/app-version.ts` + its spec deleted; vite `devTagVersion`
+  shim removed; `config.ts` TAG_VERSION kept ONLY as the deploy sed target (comment updated).
+- **Verified live in a browser** (local feat :5000 + plst back :3299 + static test page): the
+  element fetched the real version `1.0.16.0.0.27` from `/api/version`, derived `project` from
+  the hostname, adopted the manifest's render module, and **hot-swapped to a temporary v4
+  renderer within one poll cycle without reload** (v4 removed after the test). v1/v2 checked
+  unregressed; feat router manifest/v3/render.js all 200 with right MIME/caching.
+- **Verify**: back **125/125** (local MySQL had to be restarted — `brew services start mysql` —
+  all 24 failures before that were ECONNREFUSED 3306, environmental) + lint clean; web tsc
+  clean, **62/62** vitest, build ok.
+- **Ordering**: plst's badge stays DARK until feat v3 deploys (user step: `-d` commit on feat).
+  Angular (web-angular) still uses its own local TAG_VERSION badge from 2026-11-07 (3) —
+  switching it would mirror this same two-pointer pattern.
+
+## 2026-11-07 (6) — PLAN (rule 1): feature-slot architecture — config API (mock) + generic remote web-element wrapper
+
+**Request (supersedes the `/api/version` data endpoint):** "i dont like the thing we link this
+web feature with backend… all needed values should be accessible on web build time, so they are
+in bundle" — then corrected further: drop the manifest too; add a **features config API (mock)**
+that tells the web app WHICH feature/component/version to mount; and a generic **slot wrapper**
+that loads remote feat web-elements inside itself. Slots = named mount points every future app
+can declare; a config GUI will edit the API's data later.
+
+**Approach:**
+1. **back**: mock `GET ${apiPrefix}/features` → `{features: [{id, element, namespace, version,
+   slot, baseUrl}]}` (static const; shape documented once, mirrored in web types).
+2. **web `src/core/features.ts`**: `FeatureConfig` type + `useFeaturesConfig()` — fetch once,
+   module-level promise cache (N slots = 1 request).
+3. **web `src/layout/FeatureSlot.tsx`**: `{slot, attrs?, fallback?}` — finds its config entry,
+   injects `<script src={baseUrl}/{id}/{version}/{namespace}/>` (module-level Map<url,Promise>,
+   inject once), renders `React.createElement(element, attrs)`. Silent while loading and on
+   failure (`fallback` default nothing) — the page never breaks over a feature.
+4. **Shell.tsx**: `<FeatureSlot slot="app-version" attrs={{version: TAG_VERSION, project:
+   'plst', namespace: 'web'}} />` — data values build-time (config.ts, sed-injected). Delete
+   `VersionDisplay.tsx` + spec; new `FeatureSlot.spec.tsx`. config.ts: TAG_VERSION stays;
+   NO `/api/version` anymore — remove back route + `lib/version.ts` + its test + skip-prefix.
+5. feat: no changes (v3 shell handles direct attrs; without `manifest` it never polls).
+6. know/entries/feat.md consumer section → slot pattern. Verify: back tests+lint, web
+   tsc+tests+build, live `/api/features`. RESULT below.
+
+### RESULT — slot architecture shipped: config API (mock) + FeatureSlot wrapper
+
+Done, nothing committed (rule 5). The web app no longer knows anything about version-display:
+it declares a slot; the backend config says what fills it.
+
+- **back/src/server.ts**: mock `GET /api/features` returning the one-row feature table
+  (slot/id/element/baseUrl/version/namespace — static const, documented as the future GUI's
+  data). Live-verified: `{"features":[{"slot":"app-version","id":"version-display",
+  "element":"deploy-info","baseUrl":"https://feat.twc1.net","version":"v3","namespace":"js-web"}]}`.
+  The whole `/api/version` thread is REMOVED (`lib/version.ts` + test + skip-prefix) — the
+  user rejected the backend data coupling: values live in the bundle.
+- **web/src/core/features.ts**: `FeatureConfig`/`FeaturesConfig` types + `useFeaturesConfig()`
+  (module-level promise cache — N slots, 1 request; `resetFeaturesConfigCache()` test hook).
+- **web/src/layout/FeatureSlot.tsx**: `{slot, attrs?, fallback?}` wrapper — config lookup,
+  script injection via a Map<url,Promise> (once per URL, `resetLoadedScripts()` test hook,
+  error clears the entry so a later mount can retry), then `createElement(element, attrs)`.
+  Contract: `null` while loading; fallback (default nothing) on config failure / missing slot
+  entry / script failure — a feature can never break the host page.
+- **Shell.tsx**: `<FeatureSlot slot="app-version" attrs={{version: TAG_VERSION, project:
+  'plst', namespace: 'web'}} />` — data values are build-time (config.ts TAG_VERSION,
+  sed-injected on deploy). `VersionDisplay.tsx` + spec deleted.
+- **FeatureSlot.spec.tsx** (4 tests): script URL assembled from config + element mounted with
+  attrs; unknown slot → nothing; script error → fallback; config failure → fallback (this last
+  one caught a real inconsistency — the wrapper initially rendered `null` on config failure).
+  jsdom never fires script events, so the specs dispatch load/error on the injected node.
+- **Verify**: back **121/121** + lint clean; web tsc clean, **65/65**, build ok.
+  Badge stays dark until feat v3 deploys (script 404s today → slot renders nothing, by design).
+- know/entries/feat.md consumer section rewritten around the slot pattern.
+
+---
+
+## 2026-11-05 (5) — jump rebuilt as self-bootstrapping node service
+VDS: userdel -r jump (1 session, clean slate). jump/back: express+dotenv app — startup bootstrap (idempotent user+key ensure, per-step logs, args-as-arrays, dev-mode skip on macOS), /healthz //status //logs, journald+ring logging; smoke-tested locally. build/ githooklib 2.2.0 seat; two commits — bump verified (0.0.2, TAG 0.0.2.0.0.0). serf: VDS-back split prisma/slim (unit-ensure via printf; scp exclude unsupported → strip step); both variants validated. know updated (vds-jump-host, deploy-slave). Nothing pushed; user steps: safe rows (SSH_HOST/SSH_USER/USER_PASS/REVERSED_PROXY_SLOT=jump/JUMP_USER/JUMP_PUBLIC_KEY/JUMP_KEY_OPTIONS), public jump repo + flow App, push serf, -d → acceptance: deploy must recreate the deleted jump user.

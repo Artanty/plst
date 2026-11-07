@@ -178,6 +178,27 @@ export function buildApp(store: Store, library?: LibraryStore) {
     });
   });
 
+  // Which remote feat web-components the app mounts where. MOCK for now — a static list;
+  // the planned configuration GUI will edit exactly this data. One row per feature:
+  //   slot     — the app's named mount point (web/src/layout/FeatureSlot.tsx looks it up)
+  //   element  — the custom element name the feature's bundle defines
+  //   baseUrl/id/version/namespace — assemble the bundle script URL
+  //   (…/{baseUrl}/{id}/{version}/{namespace}/)
+  app.get(`${apiPrefix}/features`, async (_req, reply) => {
+    return reply.send({
+      features: [
+        {
+          slot: 'app-version',
+          id: 'version-display',
+          element: 'deploy-info',
+          baseUrl: 'https://feat.twc1.net',
+          version: 'v3',
+          namespace: 'js-web',
+        },
+      ],
+    });
+  });
+
   app.post('/migrate', async (req, reply) => {
     const body = req.body as Record<string, string> | undefined;
     const mode = body?.mode ?? '';

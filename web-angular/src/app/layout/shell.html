@@ -1,6 +1,5 @@
 <header class="bar">
   <a class="brand" routerLink="/library">plst<span>library</span></a>
-{{value1}}
   <nav>
     <a routerLink="/library" routerLinkActive="on">Library</a>
     <a routerLink="/imports" routerLinkActive="on">
@@ -37,6 +36,8 @@
       }
     </select>
   </label>
+
+  <span class="version" title="app version">{{ version }}</span>
 </header>
 
 <main>

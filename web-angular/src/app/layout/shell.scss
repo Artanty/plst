@@ -69,6 +69,15 @@ nav {
   font-size: 13px;
 }
 
+.version {
+  align-self: flex-end;
+  font-size: 10px;
+  line-height: 1.4;
+  color: #8b909b;
+  font-variant-numeric: tabular-nums;
+  cursor: default;
+}
+
 .badge {
   display: inline-block;
   margin-left: 5px;

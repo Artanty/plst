@@ -1,10 +1,11 @@
 import { useEffect, type ReactNode } from 'react';
 import { Link, NavLink } from 'react-router-dom';
 import './shell.scss';
+import { TAG_VERSION } from '../config';
 import { useLibraryApi } from '../core/library-api';
 import { useSession } from '../core/session';
+import { FeatureSlot } from './FeatureSlot';
 import { Loader } from './Loader';
-import { VersionDisplay } from './VersionDisplay';
 
 /** routerLinkActive="on" — a section stays lit on its detail pages too (`end` defaults to false). */
 const navClass = ({ isActive }: { isActive: boolean }) => (isActive ? 'on' : undefined);
@@ -98,7 +99,9 @@ export function Shell({ children }: { children: ReactNode }) {
           </select>
         </label>
 
-        <VersionDisplay />
+        {/* Remote feat web-component, mounted via the slot pattern: the features config
+            (GET /api/features) decides what loads here; the attrs are build-time values. */}
+        <FeatureSlot slot="app-version" attrs={{ version: TAG_VERSION, project: 'plst', namespace: 'web' }} />
       </header>
 
       <main>

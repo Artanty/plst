@@ -22,12 +22,10 @@ export const API_BASE = '';
 /**
  * Build-time app version — the git tag being deployed (`TAG_VERSION` env).
  *
- * Vite does not inline `process.env.*` the way stat's Parcel build does, so the value lives in
- * this config module: the deploy workflow overwrites it with `TAG_VERSION` from the root `.env`
- * ("Inject TAG_VERSION into src/config.ts" step) before the build. Without the key the committed
- * default ships, which keeps a local/dev build working.
- *
- * The `export const TAG_VERSION = '...';` line format is load-bearing: the deploy workflow's sed
- * pattern matches it exactly.
+ * NO LONGER READ BY THE APP: the version badge (`layout/VersionDisplay.tsx`) now gets its
+ * version at runtime from the backend's `/api/version` (which reads the environment and
+ * build/.env — see back/src/lib/version.ts). This constant stays only as the deploy
+ * workflow's sed target: removing it would fail the "Inject TAG_VERSION into src/config.ts"
+ * step, so the line format below is still load-bearing even though nothing imports it.
  */
 export const TAG_VERSION = '0.0.0.0';

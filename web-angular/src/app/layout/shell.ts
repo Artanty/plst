@@ -1,5 +1,6 @@
 import { Component, computed, effect, inject } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { appVersion } from '../core/app-version';
 import { LibraryApi } from '../core/library-api';
 import { Session } from '../core/session';
 import { Loader } from './loader';
@@ -27,7 +28,9 @@ export class Shell {
     this.usersAnswered() ? undefined : this.api.usersResource.error(),
   );
 
-  public readonly value1 = `${process.env['SERVICE_EMAIL']}`;
+  // The deployed app version, shown small at the end of the header bar (React counterpart:
+  // web/src/layout/VersionDisplay.tsx).
+  protected readonly version = appVersion();
 
   constructor() {
     // The user list is the switcher's options, so it has to be loaded before it can be rendered.
