@@ -1,0 +1,44 @@
+{% include 'partials/head.html' %}
+{% set pct = (job.processed * 100 // job.total) if job.total else 0 %}
+<h2>Job {{ job.id }} <span class="badge {{ job.status }}">{{ job.status }}</span></h2>
+<p class="muted">{{ job.mode }} · {{ job.source }}</p>
+{% set PERFECT = 0.9995 %}
+{% if job.error %}<p class="badge failed">{{ job.error }}</p>{% endif %}
+<p>{{ job.processed }} / {{ job.total }} tracks processed</p>
+<div class="bar"><div style="width: {{ pct }}%"></div></div>
+
+{% if summary %}
+<h3>Summary</h3>
+<table>
+  <tr><th>Title</th><th>Matched</th><th>Uncertain</th><th>Not found</th><th>Dups</th><th>Links</th></tr>
+  {% for s in summary %}
+  <tr>
+    <td>{{ s.title }}</td>
+    <td>{{ s.matched }}</td><td>{{ s.uncertain }}</td><td>{{ s.not_found }}</td>
+    <td>{{ s.skipped_dup }}</td><td>{{ s.links }}</td>
+  </tr>
+  {% endfor %}
+</table>
+<p><a href="/job/{{ job.id }}?format=links">Plain link list</a> · <a href="/job/{{ job.id }}?format=json">JSON</a></p>
+{% endif %}
+
+<h3>Tracks</h3>
+<table>
+  <tr><th>#</th><th>Yandex</th><th>YouTube Music</th><th>Score</th><th>Status</th></tr>
+  {% for it in items %}
+  <tr>
+    <td>{{ it.position + 1 }}</td>
+    <td>{{ it.src_artist }} — {{ it.src_title }} <span class="muted">({{ it.src_duration }}s)</span></td>
+    <td>{% if it.yt_video_id %}<a href="https://music.youtube.com/watch?v={{ it.yt_video_id }}">{{ it.yt_artist }} — {{ it.yt_title }}</a>{% else %}—{% endif %}</td>
+    <td>{% if it.score is not none %}{{ '%.2f' % it.score }}{% endif %}
+      {# Same rule as the CLI: a non-perfect score is never "just fine", it wants a human look. #}
+      {% if it.score is not none and it.score > 0 and it.score < PERFECT %}⚠{% endif %}</td>
+    <td><span class="badge {{ it.status }}">{{ it.status }}</span></td>
+  </tr>
+  {% endfor %}
+</table>
+
+{% if job.status in ('pending', 'running') %}
+<script>setTimeout(() => location.reload(), 3000);</script>
+{% endif %}
+{% include 'partials/tail.html' %}

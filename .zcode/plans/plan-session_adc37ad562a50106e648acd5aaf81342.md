@@ -1,28 +1,40 @@
-Feature-slot architecture: config API (mock) + generic remote web-element wrapper.
+Convert plst@back to Python (Flask), full behavioral parity, node version preserved.
 
-1. **plst back — mock config API** (`server.ts`):
-   `GET ${apiPrefix}/features` →
-   ```json
-   { "features": [ { "id": "version-display", "element": "deploy-info",
-       "namespace": "js-web", "version": "v3", "slot": "app-version",
-       "baseUrl": "https://feat.twc1.net" } ] }
-   ```
-   Static const for now (mock), typed shape documented in one place and mirrored in the web types. One entry per feature; `slot` matches the mount point name in the app; adding/moving features later = editing this data (future GUI), no app rebuild.
+## Stage A — repo move (node preserved, nothing breaks)
+- `git mv back back-node-js` (keeps history; package.json + 121-test vitest suite + views travel with it).
+- New `back/` created fresh: `pyproject.toml` (version 0.0.1 — githooklib ≥2.2.0 reads python natively; back-node-js keeps npm versioning; TAG_VERSION composite keeps working), `requirements.txt`, `.env` + `.env.example` (same keys as node's: YANDEX_TOKEN, DB_*, proxies, tuning, HOST/PORT=3218), `venv/` (gitignored).
+- Verify A: back-node-js suite still 121/121; `npm run dev` equivalent unaffected; githooklib dry check.
 
-2. **plst web — `src/core/features.ts`**: types (`FeatureConfig`) + `useFeaturesConfig()` hook — fetches `/api/features` once, caches the promise module-level so N slots = 1 request.
+## Stage B — SDD: python implementations of the shared features in feat
+- `feat/back/features/logging/v1/py/logging.py` + `ext_log.py`, `db-diag/v1/py/db_diag.py` — ports satisfying the SAME spec/md contracts (JSON-lines file format byte-compatible so node-written logs stay readable).
+- Contract tests in feat: `back/test/test_logging_py.py`, `test_db_diag_py.py` (pytest in feat's venv) — the same cases as the .mjs suite.
+- plst sync: `back/scripts/sync_features.py` (python sibling of sync-features.mjs) → vendors into `back/lib/`.
+- Verify B: feat pytest green; plst suite untouched.
 
-3. **plst web — `src/layout/FeatureSlot.tsx`** (the wrapper):
-   - Props: `{ slot: string; attrs?: Record<string,string>; fallback?: ReactNode }`.
-   - Looks up its feature in the config; injects `<script src={baseUrl}/{id}/{version}/{namespace}/>` (module-level Map<url, Promise> so a script is injected once no matter how many slots/renders); once loaded, renders `React.createElement(element, attrs)` in place.
-   - Renders nothing while loading; `fallback` (default nothing) on config/script failure — badge-critical features stay silent, page never breaks.
-   - No manifest, no polling, no `src` data endpoint — feat's v3 shell works fine without them (direct attrs win, polling never starts).
+## Stage C — new back/ skeleton (Flask)
+- `app.py` (app factory + CORS reflect-any-origin + text/plain error handler), `config.py` (dotenv settings, same names/defaults as node's settings), `db.py` (PyMySQL + DBUtils PooledDB pool; per-connection error logging like buildPool), vendored `lib/`, `logging_setup`.
+- Routes: `/healthz`, `/api/get-updates`, `/api/features` (FEAT_BACK_URL env), 404 text handler.
+- pytest smoke: healthz/features/get-updates shapes.
+- Verify C: `python app.py` boots on 3218, vite dev talks to it.
 
-4. **plst web — Shell.tsx**: replace `<VersionDisplay />` with
-   `<FeatureSlot slot="app-version" attrs={{ version: TAG_VERSION, project: 'plst', namespace: 'web' }} />`
-   — data values are build-time (config.ts TAG_VERSION, sed-injected in deploy), per your earlier point. Delete `VersionDisplay.tsx` + its spec; new `FeatureSlot.spec.tsx` (mock fetch: right script URL injected, element created with attrs, failure → silent).
+## Stage D — library core
+- `library/schema.py` (16 tables, DDL byte-parity), `migrations.py` (match_status column + user rename, information_schema-guarded), `store.py` (scan import transaction: artists→albums→songs→artist_songs sorted by dedup_key, batched 200, deadlock retry ×3 — the whole behavioral inventory).
+- `library/routes.py` as a Flask blueprint with `x-user-id` before-hook (exact 400/404/403/404-not-403 semantics + error strings).
+- Endpoints: users, me, songs (+filters/pagination clamps), song yandex, playlists CRUD/items/share/collaborators, notifications (+read), imports (pending/:id/to-playlist), scan, ext-logs, logs.
+- Tests D: port `library.test.ts`, `library-users/migrations/ext-logs/library-logs.test.ts` 1:1.
 
-5. **feat**: no changes (v3 already supports everything needed; it stays deployed as is).
+## Stage E — matching & externals
+- `matcher.py` (normalize: NFKC/brackets/noise/translit; sorted-word feature; score = 0.6*WRatio(title)+0.4*WRatio(artist) via **rapidfuzz** — same WRatio algorithm fuzzball ports; modifiers ×0.5 qualifier / ×0.3 duration; thresholds 0.75/0.55; query variants with early-stop), `ytmusic/search.py` (ytmusicapi + YTM_PROXY + YTM_TIMEOUT + 3× backoff), `yandex/client.py` (requests.Session, YANDEX_PROXY, anonymous search, WAF fallback), `library/yandex.py` (findTrackUrl 4/2 scoring), `export/youtube` (matched/uncertain/unmatched/searchFailed + text format), notifications payloads.
+- Tests E: `matcher.test.ts` scores ported verbatim (this is where fuzzball↔rapidfuzz parity gets proven; any boundary drift gets an explicit documented tolerance), `library-youtube/yandex.test.ts` with faked deps.
 
-6. Docs: DECISIONS.md plan + result; know/entries/feat.md consumer section rewritten around the slot pattern (config API → wrapper → attrs).
+## Stage F — pipeline, admin pages, CLIs
+- `pipeline.py` (jobs/items/match_cache + background thread runner, SEARCH_CONCURRENCY semaphore), `paste_json.py`, `url_parser.py`, `templates/` (index/jobs/job in Jinja2 mirroring the EJS pages), `cli_db.py` (`db:check` ladder), `cli_match.py`, `scripts/get_yandex_token.py`, `scripts/logs.py` (logs tail), `scripts/sync_features.py`.
+- Tests F: `db/pipeline/pasteJson/url.test.ts` ports + admin-page HTTP tests (form-encoded POST /migrate, 303 redirect, ?format=json/links).
+- Verify F: full pytest run.
 
-Verify: web tsc + vitest + build; back tests + lint; live-ish check with back running that /api/features answers and the page renders the badge (feat v3 still not deployed → script fails → slot silently empty, which is the designed behavior).
+## Stage G — parity gate + cutover docs
+- `pytest` green (target ≥ the 121 scenarios), back-node-js suite still 121/121, one boot of each against the same DB schema; vite dev against python back end-to-end (badge, library page).
+- Docs: back/AGENTS.md (python), back-node-js/AGENTS.md note (frozen reference), DECISIONS results, know/entries update (back-py pattern), web BACK_URL untouched (same port 3218).
+
+## Key parity invariants (pinned throughout)
+Same .env keys; same routes/status codes/error strings (text/plain); same JSON shapes (epoch-float timestamps, bool coercions); same DB DDL + migrations; same log file formats; same FEAT_BACK_URL/TAG_VERSION envs; PORT default 3218.

@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>plst — Yandex Music → YouTube Music links</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 960px; margin: 2rem auto; padding: 0 1rem; color: #1a1a1a; }
+    h1 a { color: inherit; text-decoration: none; }
+    form select, form input[type=text], form textarea { padding: .5rem; width: 100%; box-sizing: border-box; }
+    form textarea { font: 11px/1.4 ui-monospace, monospace; resize: vertical; }
+    form button { padding: .5rem 1.5rem; margin-top: .75rem; cursor: pointer; }
+    table { border-collapse: collapse; width: 100%; font-size: .9rem; }
+    th, td { text-align: left; padding: .35rem .5rem; border-bottom: 1px solid #ddd; vertical-align: top; }
+    .badge { display: inline-block; padding: .1rem .5rem; border-radius: 8px; font-size: .75rem; color: #fff; }
+    .matched { background: #2e7d32; } .uncertain { background: #ef6c00; }
+    .not_found { background: #b71c1c; } .skipped_dup { background: #607d8b; }
+    .running { background: #1565c0; } .pending { background: #9e9e9e; }
+    .done { background: #2e7d32; } .failed { background: #b71c1c; }
+    .muted { color: #777; }
+    .bar { background: #eee; border-radius: 6px; height: 10px; margin: .5rem 0; }
+    .bar > div { background: #1565c0; height: 10px; border-radius: 6px; }
+    .row { display: flex; gap: 1rem; align-items: flex-end; }
+  </style>
+</head>
+<body>
+  <h1><a href="/">🎵 plst</a></h1>

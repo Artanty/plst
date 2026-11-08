@@ -184,6 +184,9 @@ export function buildApp(store: Store, library?: LibraryStore) {
   //   element  — the custom element name the feature's bundle defines
   //   baseUrl/id/version/namespace — assemble the bundle script URL
   //   (…/{baseUrl}/{id}/{version}/{namespace}/)
+  // baseUrl comes from FEAT_BACK_URL so a feat redeploy/staging instance is a restart away,
+  // never a code change.
+  const featBackUrl = process.env.FEAT_BACK_URL ?? 'https://feat.twc1.net';
   app.get(`${apiPrefix}/features`, async (_req, reply) => {
     return reply.send({
       features: [
@@ -191,8 +194,8 @@ export function buildApp(store: Store, library?: LibraryStore) {
           slot: 'app-version',
           id: 'version-display',
           element: 'deploy-info',
-          baseUrl: 'https://feat.twc1.net',
-          version: 'v3',
+          baseUrl: featBackUrl,
+          version: 'v4',
           namespace: 'js-web',
         },
       ],

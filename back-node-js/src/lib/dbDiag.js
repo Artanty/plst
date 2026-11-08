@@ -1,57 +1,22 @@
-import net from 'node:net';
-import mysql from 'mysql2/promise';
-
 /**
- * Diagnosing "the database is unreachable" — the recurring failure of the remote MySQL at
- * 185.114.247.197 (Timeweb VPS). Two DIFFERENT layers were proven to produce it on 2026-10-13/20,
- * and telling them apart is the entire point of this module:
+ * db-diag feature — MySQL unreachability diagnosis (js-node implementation).
  *
- * 1. FIREWALL (network layer): TCP SYN dropped — `connect ETIMEDOUT`, MySQL never speaks. On the
- *    VPS: Timeweb security group / iptables. Depends on the client's public IP, so it bites when
- *    the user works from a new location.
- * 2. GRANT (MySQL layer): connection reaches MySQL, which answers `Access denied for user
- *    'x'@'<ip>'` — the account is IP-pinned ('cs99850_yaum'@'93.100.74.64', no '%' entry), so a
- *    new location is refused even with the firewall open.
- *
- * Plus the ordinary causes: host down / route gone (also ETIMEDOUT but at ping level),
- * MySQL not listening (ECONNREFUSED), DNS gone (ENOTFOUND), and a half-open connection cut
- * mid-handshake (ECONNRESET / PROTOCOL_CONNECTION_ERROR).
- *
- * Everything here is pure-ish and injectable so tests need no network: the probes take their
- * dependencies as parameters, and classifyDbError is a pure function over error codes.
+ * Contract: back/spec/db-diag.md. Vendored by consumers (plst: → back/src/lib/dbDiag.js).
+ * Ported verbatim from plst's original back/src/lib/dbDiag.ts. The classifier and probeTcp
+ * are dependency-free (node:net only); checkDatabase lazy-imports `mysql2/promise` at call
+ * time so the module itself loads without it.
  */
-
-export interface DbAction {
-  /** One line a human can act on, ordered most-likely-first. */
-  text: string;
-  /** Optional ready-to-run command or SQL. */
-  code?: string;
-}
-
-export interface DbVerdict {
-  kind:
-    | 'ok'
-    | 'timeout'
-    | 'refused'
-    | 'dns'
-    | 'reset'
-    | 'access_denied'
-    | 'db_access_denied'
-    | 'unknown';
-  headline: string;
-  actions: DbAction[];
-}
+import net from 'node:net';
 
 const HOST_HINT = 'run `npm run db:check` in back/ for the full ladder (TCP → login → grants)';
 
 /**
- * Classify a connection-level error into a verdict naming the layer and the next step. Pure over
- * the error; `host` only appears inside the advice (defaults to the configured DB_HOST, which the
- * config module has already loaded from .env by the time any caller runs — tests pass it in).
+ * Classify a connection-level error into a verdict naming the layer and the next step. Pure
+ * over the error; `host` only appears inside the advice. See the spec's classification table.
  */
-export function classifyDbError(err: unknown, host?: string): DbVerdict {
+export function classifyDbError(err, host) {
   const target = host ?? process.env.DB_HOST ?? '185.114.247.197';
-  const e = err as { code?: string; message?: string; errno?: number };
+  const e = err;
   const code = e?.code ?? '';
   const message = String(e?.message ?? err).split('\n')[0].slice(0, 200);
 
@@ -88,10 +53,9 @@ export function classifyDbError(err: unknown, host?: string): DbVerdict {
       ],
     };
   }
-  // PROTOCOL_CONNECTION_LOST is the shape a mid-run flap most often takes: mysql2 saw the socket
-  // 'close' with no prior error (verified live 2026-10-20 — resetAndDestroy produced exactly
-  // "Connection lost: The server closed the connection." with that code). Also the natural
-  // consequence of MySQL's wait_timeout closing a pooled connection that sat idle.
+  // PROTOCOL_CONNECTION_LOST is the shape a mid-run flap most often takes: the socket 'close'
+  // with no prior error — also the natural consequence of wait_timeout closing an idle pooled
+  // connection.
   if (
     code === 'ECONNRESET' ||
     code === 'PROTOCOL_CONNECTION_ERROR' ||
@@ -115,13 +79,8 @@ export function classifyDbError(err: unknown, host?: string): DbVerdict {
     };
   }
   if (code === 'ER_ACCESS_DENIED_ERROR') {
-    // The message itself carries both facts the fix needs: the account and the client address
-    // MySQL SAW ("Access denied for user 'x'@'93.100.74.64' (using password: YES)"). Reaching
-    // this error also PROVES the firewall is open for this IP — a dropped TCP never gets this
-    // far — so only two causes remain: wrong DB_PASSWORD, or no grant for this address. Note
-    // both, because the error alone cannot tell them apart. (MySQL may report a reverse-DNS
-    // name instead of a bare IP when name resolution is on; either way it is the exact host
-    // string a GRANT must use.)
+    // Reaching this error PROVES the firewall is open (a dropped TCP never gets here) — two
+    // causes remain: wrong DB_PASSWORD, or no grant for the address MySQL reported seeing.
     const observed = /for user '([^']+)'@'([^']+)'/.exec(message);
     const account = observed?.[1] ?? 'cs99850_yaum';
     const seenFrom = observed?.[2] ?? null;
@@ -157,12 +116,10 @@ export function classifyDbError(err: unknown, host?: string): DbVerdict {
 }
 
 /**
- * The SQL that fixes an IP-pinned grant for a moved client. Password deliberately NOT interpolated
- * — it belongs in the .env, and printing it into a terminal transcript or a log would leak it.
- * `clientHost` is the address MySQL itself reported seeing (from the Access denied message) — fill
- * it when known, otherwise leave the PUBLIC_IP placeholder for the human to copy from db:check.
+ * The SQL that fixes an IP-pinned grant for a moved client. Password deliberately NOT
+ * interpolated — printing it into a terminal transcript or a log would leak it.
  */
-export function grantSqlForUser(user: string, clientHost?: string | null): string {
+export function grantSqlForUser(user, clientHost) {
   const host = clientHost ?? 'PUBLIC_IP';
   return [
     `-- as MySQL root on the VPS; host below = the address MySQL saw this connection come from`,
@@ -174,31 +131,26 @@ export function grantSqlForUser(user: string, clientHost?: string | null): strin
   ].join('\n');
 }
 
-export interface TcpProbeResult {
-  ok: boolean;
-  latencyMs: number | null;
-  error?: NodeJS.ErrnoException;
-}
-
 /** Raw TCP reachability — the layer BELOW MySQL. Tells firewall-drop from port-closed. */
 export function probeTcp(
-  host: string,
-  port: number,
+  host,
+  port,
   timeoutMs = 5000,
-  connect: typeof net.createConnection = net.createConnection,
-): Promise<TcpProbeResult> {
+  connect = net.createConnection,
+) {
   return new Promise((resolve) => {
     const started = Date.now();
     let settled = false;
-    const done = (r: TcpProbeResult) => {
+    let socket;
+    const done = (r) => {
       if (settled) return;
       settled = true;
       socket.destroy();
       resolve(r);
     };
-    const socket = connect({ host, port });
+    socket = connect({ host, port });
     const timer = setTimeout(() => {
-      const err: NodeJS.ErrnoException = new Error(`connect ETIMEDOUT after ${timeoutMs}ms`);
+      const err = new Error(`connect ETIMEDOUT after ${timeoutMs}ms`);
       err.code = 'ETIMEDOUT';
       done({ ok: false, latencyMs: null, error: err });
     }, timeoutMs);
@@ -213,32 +165,27 @@ export function probeTcp(
   });
 }
 
-export interface DbConfig {
-  host: string;
-  port: number;
-  user?: string | undefined;
-  password?: string | undefined;
-  database?: string | undefined;
-  connectTimeoutMs?: number;
-}
-
-export interface DbProbeResult {
-  verdict: DbVerdict;
-  latencyMs: number | null;
-  identity?: { user: string; host: string; version: string };
-  grants?: string[];
-  songCount?: number | null;
-}
-
 /**
- * Full login probe: connect as the app user, ask MySQL who we are, what we may do, and how many
- * songs are there — the three facts that answer "is the DB fine and is it the RIGHT DB".
- * connectTimeout is short on purpose: db.ts defaults to 10s, which makes a dead DB look like a
- * hung test rather than a diagnosis.
+ * Full login probe: who are we, what may we do, how many songs — the three facts that answer
+ * "is the DB fine and is it the RIGHT DB". connectTimeout short on purpose: a dead DB must
+ * diagnose in seconds, not look like a hung test.
  */
-export async function checkDatabase(cfg: DbConfig): Promise<DbProbeResult> {
+export async function checkDatabase(cfg) {
   const started = Date.now();
-  let conn: mysql.Connection | null = null;
+  let conn = null;
+  let mysql;
+  try {
+    ({ default: mysql } = await import('mysql2/promise'));
+  } catch {
+    return {
+      verdict: {
+        kind: 'unknown',
+        headline: 'checkDatabase needs the mysql2 package — install it in the consumer project',
+        actions: [],
+      },
+      latencyMs: null,
+    };
+  }
   try {
     conn = await mysql.createConnection({
       host: cfg.host,
@@ -250,26 +197,26 @@ export async function checkDatabase(cfg: DbConfig): Promise<DbProbeResult> {
     });
     const latencyMs = Date.now() - started;
 
-    const [idRows] = (await conn.query(
+    const [idRows] = await conn.query(
       'SELECT CURRENT_USER() AS cu, @@hostname AS hostname, VERSION() AS version',
-    )) as [{ cu: string; hostname: string; version: string }[], unknown];
+    );
     const identity = {
       user: idRows[0].cu,
       host: idRows[0].hostname,
       version: idRows[0].version,
     };
 
-    let grants: string[] = [];
+    let grants = [];
     try {
-      const [g] = (await conn.query('SHOW GRANTS')) as [{ [k: string]: string }[], unknown];
+      const [g] = await conn.query('SHOW GRANTS');
       grants = g.map((row) => Object.values(row)[0]);
     } catch {
       /* SHOW GRANTS can be denied to restricted users — not worth failing the probe over */
     }
 
-    let songCount: number | null = null;
+    let songCount = null;
     try {
-      const [s] = (await conn.query('SELECT COUNT(*) AS n FROM songs')) as [{ n: number }[], unknown];
+      const [s] = await conn.query('SELECT COUNT(*) AS n FROM songs');
       songCount = s[0].n;
     } catch {
       /* no songs table (fresh install) — the count is a sanity signal, not the point */
@@ -289,12 +236,16 @@ export async function checkDatabase(cfg: DbConfig): Promise<DbProbeResult> {
   } catch (err) {
     return { verdict: classifyDbError(err, cfg.host), latencyMs: null };
   } finally {
-    void conn?.end().catch(() => undefined);
+    try {
+      await conn?.end();
+    } catch {
+      /* connection already gone */
+    }
   }
 }
 
 /** This machine's public IP — the value the VPS firewall and the grants actually see. */
-export async function publicIp(fetchImpl: typeof fetch = fetch): Promise<string | null> {
+export async function publicIp(fetchImpl = fetch) {
   try {
     const res = await fetchImpl('https://ifconfig.me/ip', { signal: AbortSignal.timeout(5000) });
     if (!res.ok) return null;

@@ -7,7 +7,7 @@
  * dropdown — and the extension sends the identical header, so the browser and the scanner share
  * one server-side code path.
  */
-import { API_BASE } from '../config';
+import { apiBase } from '../config';
 
 const LIBRARY_PREFIX = '/api/library';
 
@@ -24,7 +24,7 @@ export function normalizeBase(base: string): string {
   return `http://${value}`.replace(/\/+$/, '');
 }
 
-const BASE = normalizeBase(API_BASE);
+const BASE = normalizeBase(apiBase());
 
 export class ApiError extends Error {
   constructor(

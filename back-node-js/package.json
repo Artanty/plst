@@ -14,7 +14,8 @@
     "db:check": "tsx src/cliDb.ts",
     "match": "tsx src/cli.ts match",
     "test": "vitest run",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "features:sync": "node scripts/sync-features.mjs"
   },
   "dependencies": {
     "@fastify/cors": "^11.3.0",

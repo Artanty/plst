@@ -1,0 +1,10 @@
+.venv/
+__pycache__/
+node_modules/
+dist/
+.pytest_cache/
+.env
+*.db
+*.db-shm
+*.db-wal
+.smoke_*

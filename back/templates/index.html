@@ -1,0 +1,47 @@
+{% include 'partials/head.html' %}
+<p class="muted">Convert Yandex Music playlists/albums, or track JSON captured by the browser extension, into YouTube Music links.</p>
+
+<form method="post" action="/migrate">
+  <div class="row">
+    <div style="flex:0 0 14rem">
+      <label for="mode">Mode</label><br>
+      <select name="mode" id="mode" onchange="switchMode(this.value)">
+        <option value="playlist" selected>Playlist (URL)</option>
+        <option value="album">Album (URL)</option>
+        <option value="json">Pasted track JSON</option>
+      </select>
+    </div>
+    <div style="flex:1">
+      <label for="srcUrl">Source</label><br>
+      <input type="text" name="source" id="srcUrl" placeholder="https://music.yandex.ru/playlists/lk.<id> (or any public playlist)">
+      <textarea name="source" id="srcJson" rows="10" style="display:none" disabled
+                placeholder='[{"title":"Daze","artists":["Poets Of The Fall"],"album":"Daze","durationS":326}]'></textarea>
+    </div>
+  </div>
+  <button type="submit">Convert →</button>
+</form>
+
+<script>
+const hints = {
+  playlist: "https://music.yandex.ru/playlists/lk.<id>\
+             or https://music.yandex.ru/users/<user>/playlists/<kind>",
+  album: "https://music.yandex.ru/album/<id>",
+  json: "Paste the track JSON copied from the plst extension"
+};
+// Exactly one of the two fields keeps name="source" enabled, so the form body never carries both.
+function switchMode(m) {
+  const url = document.getElementById('srcUrl');
+  const json = document.getElementById('srcJson');
+  const isJson = m === 'json';
+  url.style.display = isJson ? 'none' : '';
+  url.disabled = isJson;
+  json.style.display = isJson ? '' : 'none';
+  json.disabled = !isJson;
+  url.placeholder = hints[m] || '';
+  if (m !== 'json') json.value = '';
+  else url.value = '';
+}
+</script>
+
+<p><a href="/jobs">Job history</a></p>
+{% include 'partials/tail.html' %}

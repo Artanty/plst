@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { API_BASE } from '../config';
+import { apiBase } from '../config';
 import { normalizeBase } from './http';
 
 /** One remote feature the app can mount into a named slot (see layout/FeatureSlot.tsx).
@@ -34,7 +34,7 @@ export function resetFeaturesConfigCache() {
 
 function fetchFeaturesConfig(): Promise<FeaturesConfig> {
   if (!configPromise) {
-    configPromise = fetch(`${normalizeBase(API_BASE)}/api/features`).then((res) => {
+    configPromise = fetch(`${normalizeBase(apiBase())}/api/features`).then((res) => {
       if (!res.ok) throw new Error(`features config: HTTP ${res.status}`);
       return res.json() as Promise<FeaturesConfig>;
     });

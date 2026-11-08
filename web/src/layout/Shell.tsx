@@ -1,7 +1,7 @@
 import { useEffect, type ReactNode } from 'react';
 import { Link, NavLink } from 'react-router-dom';
 import './shell.scss';
-import { TAG_VERSION } from '../config';
+import { apiVersion } from '../config';
 import { useLibraryApi } from '../core/library-api';
 import { useSession } from '../core/session';
 import { FeatureSlot } from './FeatureSlot';
@@ -101,7 +101,7 @@ export function Shell({ children }: { children: ReactNode }) {
 
         {/* Remote feat web-component, mounted via the slot pattern: the features config
             (GET /api/features) decides what loads here; the attrs are build-time values. */}
-        <FeatureSlot slot="app-version" attrs={{ version: TAG_VERSION, project: 'plst', namespace: 'web' }} />
+        <FeatureSlot slot="app-version" attrs={{ version: apiVersion(), project: 'plst', namespace: 'web' }} />
       </header>
 
       <main>

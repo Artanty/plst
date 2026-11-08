@@ -9,11 +9,8 @@
   
   <body>
     <div id="root"></div>
-    <!-- feat version-display web component: defines <deploy-info> before React renders it.
-         Pinned to v3, the dynamic shell — it pulls the LATEST render logic itself via feat's
-         /manifest.json (see src/layout/VersionDisplay.tsx), so only bootstrap fixes ever
-         need this tag touched. -->
-    <script src="https://feat.twc1.net/version-display/v3/js-web/"></script>
+    <!-- Remote feat web-components are injected at runtime by FeatureSlot from the features
+         config (GET /api/features) — no bundle tag here anymore. -->
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
