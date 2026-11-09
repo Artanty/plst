@@ -182,3 +182,20 @@ folder map, prerequisites (.env per app, local MySQL), run commands for the pyth
 (`venv/bin/python app.py`), the node reference back (`npm run dev`), web (`npm start`), the
 extension, all test suites, the feat vendoring flow, diagnostics (cli_db / logs / HTTP), and
 the deploy hooks (`-d`). Nothing committed.
+
+## 2026-11-09 — back-only `-d` commit triggered the WEB deploy (diagnosis + fix, option 1)
+
+**Symptom:** after a back-only commit with `-d` the back triple bumped (0.0.1→0.0.2) but the
+serf "Deploy plst@web" workflow ran instead of back. Reinstalling githooklib ruled out — hooks
+worked (tag_history.log: only back bumped, tag `v0.0.2.0.0.29` correct).
+
+**Root cause:** the 2026-11-08 python conversion reset the back version to `0.0.1` (fresh
+pyproject) after node's `1.0.17` — a DECREASE. flow picks "previous tag" via `tags.find` over
+GitHub's unordered `listTags` (`webhook.ts:176`); with `v1.0.17.0.0.28` sorting first by name,
+back `0.0.2 > 1.0.17` = no increase while web `0.0.29 > 0.0.28` = increase → web dispatched,
+back never deployed (incl. the conversion commit itself).
+
+**Fix (user chose option 1):** continue the sequence — `back/pyproject.toml` version set to
+`1.0.18` (uncommitted, rule 5). Next `-d` tag `v1.0.18.0.0.29` increases against
+`v1.0.17.0.0.28` regardless of list order. Deferred hardenings (declined for now):
+githooklib refusing version decreases; flow picking prevTag by creation date.
