@@ -1,5 +1,5 @@
 [project]
 name = "plst-back"
-version = "1.0.21"
+version = "1.0.22"
 description = "plst backend (python port of back-node-js — the node version stays as the behavioral reference)"
 requires-python = ">=3.9"

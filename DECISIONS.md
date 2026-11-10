@@ -223,3 +223,37 @@ again; revisited if a decrease ever slips through from a repo without githooklib
 against the real VPS: reachable, login ok, round-trip 45ms, 493 songs — remote DB is fine.
 First theory (firewall change dropped this machine's IP) was wrong; log-first saved it.
 So the ONLY remaining blocker is the container→VPS egress IP whitelist/GRANT.
+
+## 2026-11-10 (2) — PLAN: TEMP-TEST deploy with MySQL hidden (snapdeploy egress-IP probe)
+
+**Request:** temporary test deploy so the snapdeploy container can BOOT without the (not yet
+whitelisted) MySQL: comment out all MySQL traces so snapdeploy's scanner doesn't detect/
+"auto-add" PyMySQL, boot with mock data instead, and extend GET /api/get-updates to return
+the container's real OUTBOUND IP (the value the VPS whitelist needs). User will ask to
+restore MySQL after the test.
+
+**Edits (all marked `TEMP-TEST-MYSQL-HIDDEN` for easy revert, nothing committed):**
+1. `requirements.txt`: comment `PyMySQL>=1.1` + `DBUtils>=3.0` (their import-scanner
+   re-adds "missing" packages — source imports must be gone too).
+2. `db.py`: comment the module-level `import pymysql` / `from dbutils...` (module unusable;
+   nothing imports it in mock mode — app.py imports db only inside init_database()).
+3. `lib/db_diag.py:164`: comment the lazy `import pymysql`.
+4. `app.py main()`: skip `init_database()`, pass `_MockStore()` (any method raises with a
+   clear "mock backend" message) as store+library. Boot paths that don't touch the DB work:
+   /healthz, GET /api/get-updates, /api/features, home page. DB-backed routes 500 — fine
+   for the test. Local dev/tests break while this is in (they import db) — accepted,
+   temporary.
+5. `get-updates`: new `"ip"` field = outbound IP via api.ipify.org (requests, 5s timeout,
+   falls back to an "unavailable (<Error>)" string). get-updates itself was already DB-free.
+
+### RESULT
+All 5 edits in, every one tagged `TEMP-TEST-MYSQL-HIDDEN`. Verified: mock app boots clean
+("server ready"), /healthz 200, /api/get-updates 200 with `"ip"` filled (94.19.32.224 —
+ipify reachable even from this machine), /api/features 200, home 200; grep confirms ZERO
+live `import pymysql` / `from dbutils` lines in requirements.txt, db.py, lib/db_diag.py.
+DB-backed routes raise the mock marker. Side effects while active: local dev/tests that
+import db.py are broken (conftest imports db — pytest DB tests will error; offline tests
+still pass) — expected, temporary. NOT committed (rule 5): user commits with `-d` to ship.
+Revert = undo the markers in requirements.txt, db.py, lib/db_diag.py, app.py (main() init
+line + `_MockStore` + `_outbound_ip` + the `"ip"` field). After the VPS whitelist has the
+container's IP, restore per the revert note.
