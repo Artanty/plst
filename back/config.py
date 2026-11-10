@@ -53,7 +53,10 @@ settings = Settings(
 # The port the server listens on (node read it directly in server.ts; kept out of Settings for
 # parity with the node code's shape).
 PORT = int(os.environ.get("PORT") or 3218)
-API_PREFIX = os.environ.get("API_PREFIX") or "/api"
+# Normalize: an env like "api" (no leading slash) produced route rules Flask rejects
+# ("URL rule 'api/get-updates' must start with a slash") — crashed the snapdeploy boot.
+_api_prefix = (os.environ.get("API_PREFIX") or "").strip().lstrip("/")
+API_PREFIX = f"/{_api_prefix}" if _api_prefix else "/api"
 
 
 def apply_ytm_proxy():

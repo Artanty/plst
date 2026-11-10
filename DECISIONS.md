@@ -257,3 +257,13 @@ still pass) — expected, temporary. NOT committed (rule 5): user commits with `
 Revert = undo the markers in requirements.txt, db.py, lib/db_diag.py, app.py (main() init
 line + `_MockStore` + `_outbound_ip` + the `"ip"` field). After the VPS whitelist has the
 container's IP, restore per the revert note.
+
+## 2026-11-10 (3) — snapdeploy boot crash: API_PREFIX missing its slash
+
+**Crash:** `ValueError: URL rule 'api/get-updates' must start with a slash` — the container
+had `API_PREFIX=api` set (SnapDeploy's env form flagged it "Required"; entered without the
+leading slash). Locally invisible: the var is unset, so `or "/api"` defaulted. Any non-empty
+value passed through raw into Flask route rules → crash at route registration.
+**Fix:** `config.py` normalizes — strip, strip leading slashes, empty → `/api`
+(`api`, `/api`, `//api`, ` /api `, `` all → `/api`). Verified: boots clean WITH the exact
+crashing value. Uncommitted (rule 5) — user commits `-d` again to ship.
