@@ -197,5 +197,10 @@ back never deployed (incl. the conversion commit itself).
 
 **Fix (user chose option 1):** continue the sequence — `back/pyproject.toml` version set to
 `1.0.18` (uncommitted, rule 5). Next `-d` tag `v1.0.18.0.0.29` increases against
-`v1.0.17.0.0.28` regardless of list order. Deferred hardenings (declined for now):
-githooklib refusing version decreases; flow picking prevTag by creation date.
+`v1.0.17.0.0.28` regardless of list order. githooklib refusing version decreases; flow picking prevTag by creation date.
+
+**Follow-up (2026-11-09):** the githooklib half of the hardening is DONE — githooklib 2.3.0
+(local, uncommitted) rejects manual version decreases in pre-commit (details in
+`~/server/githooklib/DECISIONS.md`). Takes effect in plst only after `npm publish` +
+reinstall in `build/`. The flow prevTag hardening was left out (sequence is self-consistent
+again; revisited if a decrease ever slips through from a repo without githooklib 2.3.0).
