@@ -204,3 +204,22 @@ back never deployed (incl. the conversion commit itself).
 `~/server/githooklib/DECISIONS.md`). Takes effect in plst only after `npm publish` +
 reinstall in `build/`. The flow prevTag hardening was left out (sequence is self-consistent
 again; revisited if a decrease ever slips through from a repo without githooklib 2.3.0).
+
+## 2026-11-10 — snapdeploy runtime: port field, DB firewall, boot-error bug
+
+**Findings** (from the first live container logs, manual redeploy):
+1. SnapDeploy's app-port setting was filled with **3306** (the MySQL port) — platform
+   health-checks 3306, finds nothing, declares the deploy broken. App port must be **5000**
+   (user action in the dashboard).
+2. MySQL genuinely unreachable from the container: pymysql 2003 timed out (packets dropped
+   = firewall signature). Whitelist entry must match the container's OUTBOUND egress IP +
+   MySQL GRANT for that host.
+3. Real plst bug exposed: `app.py:276-277` read the `classify_db_error` dict as an object
+   (`verdict.headline`), so the boot-time DB diagnostic crashed itself with AttributeError
+   and buried its own advice. FIXED: `verdict['headline']` / `verdict['actions']`; verified
+   dict access + offline tests.
+**Same-day discovery, CORRECTED:** the 42 test errors are the LOCAL dev MySQL on this Mac
+(127.0.0.1:3306 ConnectionRefused — mysqld simply not running), NOT the VPS. `cli_db.py`
+against the real VPS: reachable, login ok, round-trip 45ms, 493 songs — remote DB is fine.
+First theory (firewall change dropped this machine's IP) was wrong; log-first saved it.
+So the ONLY remaining blocker is the container→VPS egress IP whitelist/GRANT.

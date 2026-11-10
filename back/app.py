@@ -1,6 +1,7 @@
 """plst backend — python port of back-node-js/src/server.ts (Flask).
 
 
+
 Same .env, same routes, same JSON shapes, same text/plain error bodies. Run: `python app.py`
 (listens on HOST:PORT from .env, default 0.0.0.0:3218 so the vite dev proxy target keeps
 working unchanged).
@@ -273,8 +274,8 @@ def main():
         store, library = init_database()
     except Exception as err:
         verdict = classify_db_error(err, settings.db_host)
-        logger.error(f"database unreachable at boot — {verdict.headline}", err, "onBoot")
-        for action in verdict.actions:
+        logger.error(f"database unreachable at boot — {verdict['headline']}", err, "onBoot")
+        for action in verdict["actions"]:
             logger.log(
                 "database: what to do",
                 {"action": action["text"], "code": action.get("code")},
