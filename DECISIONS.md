@@ -267,3 +267,25 @@ value passed through raw into Flask route rules → crash at route registration.
 **Fix:** `config.py` normalizes — strip, strip leading slashes, empty → `/api`
 (`api`, `/api`, `//api`, ` /api `, `` all → `/api`). Verified: boots clean WITH the exact
 crashing value. Uncommitted (rule 5) — user commits `-d` again to ship.
+
+## 2026-11-12 — PLAN: minimal DB connectivity probe (snapdeploy → VPS MySQL)
+
+**Context:** user whitelisted the container's egress IP (94.19.32.224, read from get-updates
+"ip") + added the URL to the whitelist. Next step: verify container→MySQL actually works.
+Per user: do NOT restore the full DB part yet — only a bit for a test.
+
+**Plan (minimal, still tagged, nothing else changes):**
+1. `requirements.txt`: uncomment ONLY `PyMySQL>=1.1` (DBUtils/pool stays hidden — probe
+   uses one direct connection).
+2. `app.py`: add `GET /api/db-test` — lazy `pymysql.connect` from settings, 5s connect
+   timeout, `SELECT COUNT(*) AS songs FROM songs`, return `{ok, host, songs, ms}`;
+   errors return the classified verdict with 502. Mock store untouched; boot still mock.
+
+## 2026-11-12 — RESULT: db-test endpoint in (app.py + requirements.txt), local-verified
+
+- `requirements.txt`: PyMySQL uncommented (DBUtils still hidden).
+- `app.py`: `_db_probe()` + route `GET /api/db-test` registered inside create_app
+  (works under gunicorn AND local `python app.py`); returns ok/host/port/db/songs/ms or
+  `{"ok": false, "error_class": ..., "verdict": ...}` with 502.
+- Local verify: mock boot intact (healthz 200), /api/db-test 200 `{"songs": 493, "ms": 41}`
+  against the real VPS DB via local .env. NOT committed — user commits with `-d` to deploy.

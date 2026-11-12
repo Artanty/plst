@@ -7,6 +7,7 @@ working unchanged).
 """
 import json
 import os
+import time
 
 from dotenv import load_dotenv
 from flask import Flask, jsonify, redirect, render_template, request
@@ -162,6 +163,37 @@ def create_app(store=None, library=None, match_deps=None, yandex_deps=None, pipe
                 "getUpdates": f"{API_PREFIX}/get-updates",
                 "jobs": "/jobs",
             },
+        })
+
+    @app.get(f"{API_PREFIX}/db-test")
+    def db_test():
+        # TEMP-TEST-MYSQL-HIDDEN (snapdeploy connectivity test) — one direct connection to
+        # prove the container can reach the VPS MySQL after the whitelist update. Full DB
+        # restore (init_database, dbutils pool) still pending.
+        import pymysql
+
+        started = time.monotonic()
+        try:
+            conn = pymysql.connect(
+                host=settings.db_host, port=settings.db_port,
+                user=settings.db_user, password=settings.db_password,
+                database=settings.db_name, connect_timeout=5,
+            )
+        except Exception as err:
+            verdict = classify_db_error(err)
+            logger.log("db-test connect failed", {"errorClass": err.__class__.__name__}, "dbTest")
+            return (jsonify({"ok": False, "error_class": err.__class__.__name__, "verdict": verdict}), 502)
+        try:
+            with conn.cursor() as cur:
+                cur.execute("SELECT COUNT(*) AS songs FROM songs")
+                songs = cur.fetchone()[0]
+        finally:
+            conn.close()
+        ms = round((time.monotonic() - started) * 1000)
+        logger.log("db-test ok", {"songs": songs, "ms": ms}, "dbTest")
+        return jsonify({
+            "ok": True, "host": settings.db_host, "port": settings.db_port,
+            "db": settings.db_name, "songs": songs, "ms": ms,
         })
 
     @app.get(f"{API_PREFIX}/features")
