@@ -161,13 +161,12 @@ def check_database(cfg):
         if "connect" in cfg:
             conn = cfg["connect"](cfg)
         else:
-            # TEMP-TEST-MYSQL-HIDDEN (snapdeploy connectivity test) — was:
-            #   import pymysql
-            #   conn = pymysql.connect(host=cfg["host"], port=cfg["port"],
-            #       user=cfg.get("user"), password=cfg.get("password"),
-            #       database=cfg.get("database"),
-            #       connect_timeout=int(cfg.get("connectTimeoutMs", 8000) / 1000))
-            raise RuntimeError("mysql hidden for the snapdeploy test — restore db_diag pymysql block")
+            import pymysql
+
+            conn = pymysql.connect(host=cfg["host"], port=cfg["port"],
+                                   user=cfg.get("user"), password=cfg.get("password"),
+                                   database=cfg.get("database"),
+                                   connect_timeout=int(cfg.get("connectTimeoutMs", 8000) / 1000))
         latency_ms = int((time.monotonic() - started) * 1000)
 
         with conn.cursor() as cur:

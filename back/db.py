@@ -7,10 +7,8 @@ Placeholder style is %(name)s — call sites use dict params.
 import time
 import uuid
 
-# TEMP-TEST-MYSQL-HIDDEN (snapdeploy connectivity test) — module unusable while commented;
-# uncomment together with app.py main() and requirements.txt to restore MySQL:
-# import pymysql
-# from dbutils.pooled_db import PooledDB
+import pymysql
+from dbutils.pooled_db import PooledDB
 
 from config import settings
 from lib.db_diag import classify_db_error

@@ -143,9 +143,6 @@ def create_app(store=None, library=None, match_deps=None, yandex_deps=None, pipe
             "LOG_DISABLED": os.environ.get("LOG_DISABLED") == "true",
         }
         return jsonify({
-            # TEMP-TEST-MYSQL-HIDDEN (snapdeploy connectivity test): the container's real
-            # OUTBOUND IP — the value the VPS 3306 whitelist needs. Remove after the test.
-            "ip": _outbound_ip(),
             "version": os.environ.get("TAG_VERSION"),
             "commit_message": os.environ.get("COMMIT_MESSAGE"),
             "project_id": os.environ.get("PROJECT_ID"),
@@ -167,9 +164,8 @@ def create_app(store=None, library=None, match_deps=None, yandex_deps=None, pipe
 
     @app.get(f"{API_PREFIX}/db-test")
     def db_test():
-        # TEMP-TEST-MYSQL-HIDDEN (snapdeploy connectivity test) — one direct connection to
-        # prove the container can reach the VPS MySQL after the whitelist update. Full DB
-        # restore (init_database, dbutils pool) still pending.
+        # One direct connection + song count — a quick liveness probe for the VPS MySQL
+        # (used to verify the snapdeploy container's whitelist; kept as a handy check).
         import pymysql
 
         started = time.monotonic()
@@ -303,37 +299,8 @@ def init_database():
     return store, library
 
 
-class _MockStore:
-    """TEMP-TEST-MYSQL-HIDDEN (snapdeploy connectivity test) — stands in for the real
-    store/library so the container boots without MySQL. Any method call raises with a clear
-    marker; routes that never touch the DB (healthz, get-updates, features, home) work."""
-
-    def __getattr__(self, name):
-        def _unavailable(*args, **kwargs):
-            raise RuntimeError(
-                f"mock backend: '{name}' is unavailable — MySQL hidden for the snapdeploy test"
-            )
-
-        return _unavailable
-
-
-def _outbound_ip():
-    """TEMP-TEST-MYSQL-HIDDEN (snapdeploy connectivity test): this container's egress IP as
-    the wider internet sees it — exactly what the VPS 3306 firewall whitelist must contain."""
-    try:
-        import requests
-
-        return requests.get("https://api.ipify.org", timeout=5).text.strip()
-    except Exception as err:
-        return f"unavailable ({err.__class__.__name__}: {err})"
-
-
 def main():
-    # TEMP-TEST-MYSQL-HIDDEN (snapdeploy connectivity test) — real init was:
-    #     store, library = init_database()
-    # Restore that line (and the markers in db.py / lib/db_diag.py / requirements.txt)
-    # when the VPS whitelist knows the container's outbound IP (see get-updates "ip").
-    store, library = _MockStore(), _MockStore()
+    store, library = init_database()
     app = create_app(store=store, library=library)
     report = app.report_skip_counters
     logger.log("server ready", {"logDir": str(logger.dir), "fileWriting": logger.enabled}, "onReady")

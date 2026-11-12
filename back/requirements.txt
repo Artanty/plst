@@ -1,8 +1,7 @@
 flask>=3.0
 python-dotenv>=1.0
-# TEMP-TEST-MYSQL-HIDDEN (snapdeploy connectivity test) — DBUtils still hidden:
 PyMySQL>=1.1
-# DBUtils>=3.0
+DBUtils>=3.0
 rapidfuzz>=3.0
 requests>=2.31
 ytmusicapi>=1.8

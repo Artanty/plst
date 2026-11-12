@@ -289,3 +289,31 @@ Per user: do NOT restore the full DB part yet — only a bit for a test.
   `{"ok": false, "error_class": ..., "verdict": ...}` with 502.
 - Local verify: mock boot intact (healthz 200), /api/db-test 200 `{"songs": 493, "ms": 41}`
   against the real VPS DB via local .env. NOT committed — user commits with `-d` to deploy.
+
+## 2026-11-12 (2) — RESULT: snapdeploy container → VPS MySQL CONNECTED
+
+User whitelisted the container egress IP; after deploy, live `GET /api/db-test` returned
+`{"ok": true, "host": "185.114.247.197", "port": 3306, "db": "cs99850_yaum", "songs": 493, "ms": 1071}`
+— same 493 songs as local, so the whitelist/GRANT are correct. 1071ms vs 44ms local =
+container→VPS network latency only. TEMP-TEST-MYSQL-HIDDEN still in place (mock store,
+dbutils hidden, db-test endpoint). Next when asked: full restore (requirements DBUtils,
+db.py imports, db_diag pymysql, app.py init_database + remove _MockStore/_outbound_ip/"ip"
+field/db-test or keep db-test — keep it, it's a useful probe).
+
+## 2026-11-12 (3) — PLAN: full MySQL restore (undo TEMP-TEST-MYSQL-HIDDEN)
+
+User confirmed container→VPS works and asked for full restore. Revert every
+TEMP-TEST-MYSQL-HIDDEN marker: requirements DBUtils, db.py pymysql/dbutils imports,
+lib/db_diag.py pymysql import, app.py main() back to init_database(), remove _MockStore
+and _outbound_ip and the get-updates "ip" field. KEEP /api/db-test (useful probe, harmless).
+Then verify locally: real boot, db-test, pytest full suite (needs local MySQL running).
+
+## 2026-11-12 (4) — RESULT: full MySQL restored, all markers gone, 116 pytest green
+
+Reverted every TEMP-TEST-MYSQL-HIDDEN marker: requirements.txt (PyMySQL + DBUtils back),
+db.py (pymysql/PooledDB imports), lib/db_diag.py (real pymysql connect block), app.py
+main() → init_database(); removed _MockStore + _outbound_ip + get-updates "ip" field.
+KEPT: GET /api/db-test (comment rewritten — now just a liveness probe). Verified local
+real boot: /healthz 200, /api/db-test {songs:493, ms:47}, /api/library/songs?limit=2
+with x-user-id returns real data (total 493). Local MySQL started (brew); full suite
+116 passed. NOT committed — user commits with -d to deploy the real DB-backed backend.
