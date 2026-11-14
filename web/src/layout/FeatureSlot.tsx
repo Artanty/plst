@@ -1,13 +1,14 @@
 import { createElement, useEffect, useState, type ReactNode } from 'react';
-import { useFeaturesConfig } from '../core/features';
+import { BOOTSTRAP_FEATURES, useFeaturesConfig, type FeatureConfig } from '../core/features';
 
 /**
  * A named mount point for a remote feat web-component.
  *
- * The features config (`GET /api/features`, mock data in back/src/server.ts) decides WHAT
- * loads here (feature id, pinned version, element name); this wrapper only loads the bundle
- * and renders the element. `attrs` are the element's data — build-time values from the
- * consumer's own bundle (e.g. TAG_VERSION), never a runtime fetch.
+ * WHAT loads here comes from the features config (`GET /api/features`), except for
+ * bootstrap slots (BOOTSTRAP_FEATURES) which are baked in at build time because they must
+ * load before the backend can answer (app-init → wake-up). This wrapper only loads the
+ * bundle and renders the element. `attrs` are the element's data — build-time values from
+ * the consumer's own bundle (e.g. TAG_VERSION), never a runtime fetch.
  *
  * Failure behavior is deliberate: while the config loads or if anything fails (config,
  * script, unknown element) the slot renders nothing (or `fallback`) — a feature must never
@@ -50,20 +51,45 @@ export function FeatureSlot({
   fallback?: ReactNode;
 }) {
   const config = useFeaturesConfig();
-  const feature = config?.features.find((f) => f.slot === slot);
+  // Bootstrap rows win their slot and never wait for the backend config — the whole
+  // point is loading while the backend is still asleep. A slot may hold an ORDERED
+  // LIST of features (know/feature-slots): every matching row loads; rows without an
+  // element (script-only features like the bus or http-gate) render nothing.
+  const bootstrap = BOOTSTRAP_FEATURES.filter((f) => f.slot === slot);
+  const rows: FeatureConfig[] =
+    bootstrap.length > 0 ? bootstrap : (config?.features.filter((f) => f.slot === slot) ?? []);
+
+  // Still loading the config only gates NON-bootstrap slots.
+  const waitingForConfig = config === null && bootstrap.length === 0;
+  if (waitingForConfig) return null;
+
+  return (
+    <>
+      {rows.map((feature) => (
+        <SlotRow key={`${feature.id}/${feature.version}`} feature={feature} attrs={attrs} />
+      ))}
+      {rows.length === 0 && fallback}
+    </>
+  );
+}
+
+function SlotRow({
+  feature,
+  attrs,
+}: {
+  feature: FeatureConfig;
+  attrs?: Record<string, string>;
+}) {
   const [ready, setReady] = useState(false);
 
-  const scriptUrl = feature
-    ? `${feature.baseUrl}/${feature.id}/${feature.version}/${feature.namespace}/`
-    : null;
+  const scriptUrl = `${feature.baseUrl}/${feature.id}/${feature.version}/${feature.namespace}/`;
 
   useEffect(() => {
-    if (!scriptUrl) return;
     let alive = true;
     loadScript(scriptUrl).then(
       () => alive && setReady(true),
       () => {
-        /* stay silent: the slot renders the fallback */
+        /* stay silent: the slot renders nothing */
       },
     );
     return () => {
@@ -71,7 +97,7 @@ export function FeatureSlot({
     };
   }, [scriptUrl]);
 
-  if (config === null) return null; // still loading
-  if (config === undefined || !feature || !ready) return fallback; // failed or not mountable
-  return createElement(feature.element, attrs);
+  // Script-only feature (no element): the bundle's side effects ARE the feature.
+  if (!feature.element) return null;
+  return ready ? createElement(feature.element, attrs) : null;
 }

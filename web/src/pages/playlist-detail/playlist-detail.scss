@@ -3,11 +3,11 @@
 .page-playlist-detail {
   .back {
     font-size: 12px;
-    color: #737a86;
+    color: var(--muted);
     text-decoration: none;
 
     &:hover {
-      color: #14161a;
+      color: var(--text);
     }
   }
 
@@ -31,32 +31,32 @@
   .rename {
     font-size: 17px;
     padding: 5px 8px;
-    border: 1px solid #d3d7de;
+    border: 1px solid var(--border);
     border-radius: 6px;
     min-width: 260px;
   }
 
   .meta {
-    color: #737a86;
+    color: var(--muted);
     font-size: 12px;
     margin: 0;
 
     .ro {
-      color: #b3261e;
+      color: var(--err);
     }
   }
 
   .note {
     margin: 8px 0 0;
     font-size: 12px;
-    color: #1a7f37;
+    color: var(--ok);
   }
 
   section h2 {
     font-size: 11px;
     text-transform: uppercase;
     letter-spacing: 0.7px;
-    color: #737a86;
+    color: var(--muted);
     margin: 20px 0 8px;
   }
 
@@ -75,7 +75,7 @@
     }
 
     .role {
-      color: #737a86;
+      color: var(--muted);
       font-size: 12px;
     }
   }
@@ -89,7 +89,7 @@
 
     select {
       padding: 6px 8px;
-      border: 1px solid #d3d7de;
+      border: 1px solid var(--border);
       border-radius: 6px;
     }
   }
@@ -103,16 +103,16 @@
 
   .danger {
     margin-top: 4px;
-    background: #fff;
-    color: #b3261e;
-    border: 1px solid #e3b5b1;
+    background: var(--surface);
+    color: var(--err);
+    border: 1px solid var(--err-border);
     border-radius: 5px;
     padding: 6px 11px;
     font-size: 12px;
     cursor: pointer;
 
     &:hover {
-      background: #fdf3f2;
+      background: var(--err-bg);
     }
   }
 
@@ -125,7 +125,7 @@
       flex: 1;
       max-width: 420px;
       padding: 8px 10px;
-      border: 1px solid #d3d7de;
+      border: 1px solid var(--border);
       border-radius: 6px;
       font-size: 14px;
     }
@@ -135,7 +135,7 @@
     list-style: none;
     margin: 0 0 4px;
     padding: 0;
-    border: 1px solid #eef1f5;
+    border: 1px solid var(--border-faint);
     border-radius: 6px;
     max-width: 620px;
     max-height: 220px;
@@ -151,11 +151,11 @@
     }
 
     li + li {
-      border-top: 1px solid #eef1f5;
+      border-top: 1px solid var(--border-faint);
     }
 
     .a {
-      color: #737a86;
+      color: var(--muted);
       display: flex;
       gap: 4px;
       font-size: 12px;
@@ -166,7 +166,7 @@
     list-style: none;
     margin: 18px 0 0;
     padding: 0;
-    border-top: 1px solid #e2e6ec;
+    border-top: 1px solid var(--border-soft);
     font-size: 13px;
 
     li {
@@ -174,11 +174,11 @@
       align-items: center;
       gap: 10px;
       padding: 6px 4px;
-      border-bottom: 1px solid #eef1f5;
+      border-bottom: 1px solid var(--border-faint);
     }
 
     .pos {
-      color: #9aa1ad;
+      color: var(--faint);
       width: 26px;
       text-align: right;
       font-variant-numeric: tabular-nums;
@@ -189,22 +189,22 @@
     }
 
     .a {
-      color: #626a77;
+      color: var(--soft);
     }
 
     .al {
-      color: #9aa1ad;
+      color: var(--faint);
       font-size: 12px;
     }
 
     .d {
       margin-left: auto;
-      color: #9aa1ad;
+      color: var(--faint);
       font-variant-numeric: tabular-nums;
     }
 
     .by {
-      color: #ffce00;
+      color: var(--accent);
       font-size: 11px;
       font-weight: 700;
     }
@@ -212,25 +212,25 @@
     .x {
       border: 0;
       background: transparent;
-      color: #9aa1ad;
+      color: var(--faint);
       font-size: 17px;
       line-height: 1;
       cursor: pointer;
       padding: 0 4px;
 
       &:hover {
-        color: #b3261e;
+        color: var(--err);
       }
     }
   }
 
   .muted {
-    color: #737a86;
+    color: var(--muted);
     font-size: 13px;
   }
 
   .err {
-    color: #b3261e;
+    color: var(--err);
     font-size: 13px;
   }
 
@@ -243,22 +243,22 @@
       gap: 10px;
       flex-wrap: wrap;
       font-size: 13px;
-      color: #626a77;
+      color: var(--soft);
 
       strong {
-        color: #14161a;
+        color: var(--text);
       }
 
       button {
         padding: 5px 10px;
-        border: 1px solid #d3d7de;
+        border: 1px solid var(--border);
         border-radius: 6px;
-        background: #fff;
+        background: var(--surface);
         font-size: 13px;
         cursor: pointer;
 
         &:disabled {
-          color: #9aa1ad;
+          color: var(--faint);
           cursor: default;
         }
       }
@@ -267,9 +267,9 @@
     .export {
       margin-top: 10px;
       padding: 12px;
-      border: 1px solid #d3d7de;
+      border: 1px solid var(--border);
       border-radius: 8px;
-      background: #fbfcfe;
+      background: var(--surface-2);
 
       .head {
         display: flex;
@@ -280,7 +280,7 @@
         font-size: 13px;
 
         .warn {
-          color: #b3261e;
+          color: var(--err);
         }
 
         .spacer {
@@ -289,9 +289,9 @@
 
         button {
           padding: 5px 10px;
-          border: 1px solid #d3d7de;
+          border: 1px solid var(--border);
           border-radius: 6px;
-          background: #fff;
+          background: var(--surface);
           font-size: 13px;
           cursor: pointer;
 
@@ -307,7 +307,7 @@
         font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
         font-size: 12px;
         padding: 8px;
-        border: 1px solid #d3d7de;
+        border: 1px solid var(--border);
         border-radius: 6px;
         resize: vertical;
       }
@@ -316,7 +316,7 @@
         display: inline-block;
         margin: 2px 4px 0 0;
         padding: 1px 7px;
-        border: 1px solid #d3d7de;
+        border: 1px solid var(--border);
         border-radius: 10px;
         font-size: 11px;
       }
@@ -328,7 +328,7 @@
     text-align: right;
 
     a {
-      color: #1a56c4;
+      color: var(--link);
       font-size: 12px;
     }
   }
@@ -337,20 +337,20 @@
     border: none;
     background: none;
     padding: 0;
-    color: #1a56c4;
+    color: var(--link);
     cursor: pointer;
     font-size: 12px;
     text-decoration: underline;
 
     &:disabled {
-      color: #9aa1ad;
+      color: var(--faint);
       cursor: default;
       text-decoration: none;
     }
   }
 
   .yt .export .warnp {
-    color: #b3261e;
+    color: var(--err);
     font-size: 12px;
     margin: 8px 0 0;
   }

@@ -1,9 +1,10 @@
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Link, NavLink } from 'react-router-dom';
 import './shell.scss';
-import { apiVersion } from '../config';
+import { apiBase, apiVersion } from '../config';
 import { useLibraryApi } from '../core/library-api';
 import { useSession } from '../core/session';
+import { storedTheme, toggleTheme, type Theme } from '../core/theme';
 import { FeatureSlot } from './FeatureSlot';
 import { Loader } from './Loader';
 
@@ -18,6 +19,9 @@ export function Shell({ children }: { children: ReactNode }) {
   const unread = api.me.data?.unreadNotifications ?? 0;
   const librarySongs = api.me.data?.librarySongs ?? 0;
   const sharedWithMe = api.me.data?.sharedWithMe ?? 0;
+
+  // index.html applied the stored theme pre-paint; the state here only drives the toggle.
+  const [theme, setTheme] = useState<Theme>(storedTheme);
 
   const users = api.users.data?.users;
   const setUsers = session.setUsers;
@@ -82,6 +86,15 @@ export function Shell({ children }: { children: ReactNode }) {
           {librarySongs} songs
         </span>
 
+        {/* Dark is the default; the stored choice is applied pre-paint in index.html. */}
+        <button
+          className="ghost theme-toggle"
+          onClick={() => setTheme(toggleTheme())}
+          aria-label={`switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}
+        >
+          {theme === 'dark' ? 'light' : 'dark'}
+        </button>
+
         {/* No login yet: picking a user here IS the login, and the backend trusts the x-user-id header.
             Disabled until the users API answers — before that the dropdown has no options. */}
         <label className="switcher">
@@ -98,6 +111,19 @@ export function Shell({ children }: { children: ReactNode }) {
             ))}
           </select>
         </label>
+
+        {/* Bootstrap slots (baked-in rows, must not wait for the backend). wake-up v2 is
+            MANUAL: dormant until the http-gate sees a 503 and requests 'wake-up' over the
+            bus — no unconditional snapdeploy wake POST per page load anymore. */}
+        <FeatureSlot
+          slot="app-init"
+          attrs={{ target: apiBase() || window.location.origin, project: 'plst', manual: '' }}
+        />
+
+        {/* Script-only infra (no element, no UI): the bus (request/reply transport),
+            global-loading (blocking backdrop while a recovery runs), http-gate (routes
+            apiFetch traffic, config in core/feat-gate.ts). */}
+        <FeatureSlot slot="app-infra" />
 
         {/* Remote feat web-component, mounted via the slot pattern: the features config
             (GET /api/features) decides what loads here; the attrs are build-time values. */}

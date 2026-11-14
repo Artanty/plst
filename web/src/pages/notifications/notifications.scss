@@ -26,23 +26,23 @@
       align-items: baseline;
       gap: 12px;
       padding: 9px 12px;
-      border: 1px solid #e2e6ec;
+      border: 1px solid var(--border-soft);
       border-radius: 7px;
-      background: #fff;
+      background: var(--surface);
       text-decoration: none;
       color: inherit;
     }
 
     a:hover {
-      border-color: #a8b0bd;
+      border-color: var(--border-strong);
     }
 
     li.unread {
-      border-left: 3px solid #ffce00;
+      border-left: 3px solid var(--accent);
 
       > a,
       > div {
-        background: #fffdf5;
+        background: var(--unread-bg);
         border-left: 0;
       }
 
@@ -53,14 +53,14 @@
 
     .when {
       margin-left: auto;
-      color: #9aa1ad;
+      color: var(--faint);
       font-size: 12px;
       white-space: nowrap;
     }
   }
 
   .muted {
-    color: #737a86;
+    color: var(--muted);
     font-size: 13px;
   }
 }

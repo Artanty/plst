@@ -2,6 +2,56 @@
 
 Current thread only. Prior sessions: `DECISIONS-archive.md`.
 
+## 2026-11-14 — RESULT: feat features wired into web, e2e-proven (70/70, build ok)
+
+Done, nothing committed (rule 5). Changes (web/):
+1. `core/feat-gate.ts` (new): `installFeatGateConfig()` (rules 503, recovery event
+   `wake-up`, payload target = `normalizeBase(apiBase()) || origin`, timeoutMs 200000)
+   — called from main.tsx BEFORE render; `waitForFeatGate()` — apiFetch's FIRST request
+   waits (≤3s, no-op without FEAT_BACK_URL) for the http-gate bundle, closing the
+   boot race found live: /api/library/* 503'd before the gate script existed → dead
+   error UI instead of a wake.
+2. `core/features.ts`: wake-up row v1→v2 (manual mode); new `app-infra` slot rows:
+   bus, global-loading, http-gate — script-only (element now optional in FeatureConfig).
+3. `layout/FeatureSlot.tsx`: renders ALL rows matching a slot (ordered list, the
+   know/feature-slots roadmap); element-less rows load the script and render nothing;
+   script-load failure now renders nothing (fallback only for empty slots).
+4. `core/http.ts`: apiFetch transports through `window.featGate?.request ?? fetch` +
+   `await waitForFeatGate()`; `Shell.tsx`: app-init attrs += `manual`, added
+   `<FeatureSlot slot="app-infra" />`.
+5. Specs updated (bootstrap rows, app-infra 3-script test, silent-failure semantics):
+   vitest **70/70**, `npm run build` ok.
+E2E (feat router :5477 + fake sleeping snapdeploy :5480 + vite :5273, BACK_URL override):
+wire log — 4 parallel library GETs → 503 → ONE wake (single-flight) → HEAD poll → all
+parked retried → 200; bus log `global-loading-start → request:wake-up → response →
+global-loading-end`; overlay + badge during, app rendered after. CAVEATS for prod:
+(a) e2e needed OPTIONS preflights to succeed while asleep (they carry x-user-id) — if
+snapdeploy's sleeping 503 lacks CORS on cross-origin responses/preflights, the browser
+reports a NETWORK error, not 503, and the gate (by spec) passes it through — verify on
+the next real deploy; (b) user's own vite was already running on :5173 — left untouched,
+my instance used :5273. feat-side companion fix: wake-up v2 serves the bus even when the
+bus script loads later (feat/DECISIONS 2026-11-14 (7)).
+
+## 2026-11-14 — PLAN: wire feat features into web (bus + wake-up v2 manual + http-gate + global-loading)
+
+Replace the boot-time app-init wake (v1 POSTs snapdeploy on every page load) with the
+on-demand recovery chain built in feat today (feat/DECISIONS 2026-11-14 (4)-(6)):
+- `core/feat-gate.ts` (new): sets `window.FEAT_GATE_CONFIG` from BUILD-TIME config
+  (rules 503, recovery event `wake-up`, payload target = apiBase() || origin) — imported
+  by main.tsx before render.
+- `core/features.ts` bootstrapFeatures: wake-up row v1→v2 (attrs in Shell get `manual`);
+  new `app-infra` slot rows for bus, global-loading, http-gate (script-only, no element).
+- `layout/FeatureSlot.tsx`: render ALL rows matching a slot (ordered list — the roadmap
+  in know/feature-slots), and render nothing for element-less rows (invisible features).
+- `core/http.ts` apiFetch: go through `window.featGate?.request ?? fetch` (gate absent
+  in dev/tests = passthrough).
+- Shell.tsx: app-init attrs + `manual`; add `<FeatureSlot slot="app-infra" />`.
+- Update FeatureSlot.spec expectations (v2 row, new rows); run vitest + build.
+Wake flow after this: first 503 from apiFetch → gate parks/holds → bus request
+`wake-up` → wake-up v2 (manual, dormant) wakes snapdeploy → overlay (global-loading)
+blocks UI meanwhile → retry succeeds. feat-side companion fix: wake-up v2 now serves
+the bus even when the bus script loads later (plst loads bundles unordered).
+
 *(Archived on 2026-11-08 per rule 4 — the sixth trim; the live file had grown to 854 lines.
 Moved out: the 2026-11-07 deploy-info/v3-and-slot integration threads, the vendoring of
 back/src/lib into feat, BACK_URL/dotenv work, FEAT_BACK_URL, build/.env untracking, and the
@@ -317,3 +367,53 @@ KEPT: GET /api/db-test (comment rewritten — now just a liveness probe). Verifi
 real boot: /healthz 200, /api/db-test {songs:493, ms:47}, /api/library/songs?limit=2
 with x-user-id returns real data (total 493). Local MySQL started (brew); full suite
 116 passed. NOT committed — user commits with -d to deploy the real DB-backed backend.
+
+## 2026-11-13 — PLAN: plst@web FEAT_BACK_URL env + bootstrap (pre-backend) features
+
+Why: wake-up must load BEFORE the backend answers — /api/features cannot be its source
+(chicken-and-egg with the sleeping snapdeploy backend). Edits (web/): .env + .env.example
+FEAT_BACK_URL; vite.config define import.meta.env.FEAT_BACK_URL (vitest empties it);
+config.ts featBaseUrl(); core/features.ts bootstrapFeatures() + BOOTSTRAP_FEATURES
+(app-init → wake-up v1 js-web wake-server); FeatureSlot resolves bootstrap FIRST (skips
+the config-loading gate); Shell header mounts app-init slot with target=apiBase()||origin;
+specs for both. Verify: vitest + build. RESULT pending.
+
+## 2026-11-13 — RESULT: FEAT_BACK_URL + bootstrap app-init slot shipped locally
+
+- web/.env + .env.example: FEAT_BACK_URL=https://feat.twc1.net (dev alt 127.0.0.1:5000).
+- vite.config.ts: import.meta.env.FEAT_BACK_URL defined (all modes); vitest empties it.
+- config.ts: featBaseUrl() (build-time, trailing slashes stripped).
+- core/features.ts: bootstrapFeatures() builder + BOOTSTRAP_FEATURES (app-init → wake-up
+  v1 js-web wake-server) + overrideBootstrapFeatures() test hook.
+- FeatureSlot: bootstrap rows resolve FIRST and skip the config-loading gate (mounts while
+  /api/features is pending OR failed — the sleeping-backend case); backend rows unchanged
+  for other slots. Config-failure no longer hides a ready bootstrap feature.
+- Shell header: <FeatureSlot slot="app-init" attrs={{target: apiBase()||origin,
+  project:'plst'}}> next to app-version.
+- Spec fix along the way: slash-strip moved into bootstrapFeatures (featBaseUrl keeps its
+  own strip too). Vitest 69 passed; npm run build ok. NOT committed — deploys with -d;
+  wake goes live once feat deploys wake-up v1.
+
+## 2026-11-14 — PLAN: web dark mode (default dark, toggleable)
+
+Why: user asked for dark mode, default on. Approach: semantic CSS custom properties —
+`:root` carries the DARK palette (default) + `color-scheme: dark`; `:root[data-theme="light"]`
+overrides with the current light values. All 7 scss files switch hardcoded hexes to vars
+(shell .bar/.toast/.selbar stay hardcoded — already dark-on-dark in both themes).
+Theme state: `data-theme` on <html>, applied pre-paint by an inline script in index.html
+(localStorage `plst-theme`, fallback 'dark'); toggle button in the Shell header flips
+attribute + localStorage. Verify: vitest + build.
+
+## 2026-11-14 — RESULT: web dark mode shipped (default dark)
+
+- styles.scss: semantic palette as CSS vars — `:root` = DARK default + color-scheme dark,
+  `:root[data-theme="light"]` = original light values. All 5 page scss files switched to vars.
+  Kept hardcoded dark in both themes: shell .bar/.toast (shell.scss untouched) and library
+  .selbar (floating action bar family).
+- web/src/core/theme.ts: storedTheme/applyTheme/toggleTheme (localStorage `plst-theme`,
+  try/catch for private mode).
+- Shell.tsx: theme state + ghost "light"/"dark" toggle button in the header (label = what
+  you switch TO).
+- index.html: inline blocking pre-paint script sets data-theme from localStorage, dark default.
+- Verified: vitest 69 passed, build ok, browser check — default dark (body #101216), toggle
+  flips to light (#f6f7f9) and survives reload via localStorage. NOT committed — deploys with -d.

@@ -1,14 +1,76 @@
-/* Global baseline. Component styles own everything else; this is just the page frame. */
+/* Global baseline. Component styles own everything else; this is just the page frame.
+   Theme: DARK is the default; `data-theme="light"` on <html> (set pre-paint by index.html,
+   toggled from the Shell header) swaps the palette back to the original light values. */
 :root {
+  color-scheme: dark;
+  --bg: #101216;
+  --text: #e6e8ec;
+  --surface: #1a1e24;
+  --surface-2: #1f242c;
+  --hover-bg: #232830;
+  --border: #3a414d;
+  --border-soft: #2a2f38;
+  --border-faint: #242830;
+  --border-strong: #556070;
+  --muted: #98a0ad;
+  --soft: #a8b0bd;
+  --faint: #767d89;
+  --link: #7cb0ff;
+  --err: #ff8177;
+  --err-border: #6b3630;
+  --err-bg: #3a2320;
+  --ok: #63c780;
+  --accent: #ffce00;
+  --on-accent: #14161a;
+  --pick-bg: #33301d;
+  --unread-bg: #322e1c;
+  --primary-bg: #e8e9ec;
+  --primary-fg: #14161a;
+  --primary-hover: #ffffff;
+  --primary-disabled-bg: #3a414d;
+  --primary-disabled-fg: #767d89;
+  --ghost-bg: #1a1e24;
+  --ghost-fg: #c3c9d4;
+}
+
+:root[data-theme='light'] {
   color-scheme: light;
+  --bg: #f6f7f9;
+  --text: #14161a;
+  --surface: #ffffff;
+  --surface-2: #fbfcfe;
+  --hover-bg: #f7f9fc;
+  --border: #d3d7de;
+  --border-soft: #e2e6ec;
+  --border-faint: #eef1f5;
+  --border-strong: #a8b0bd;
+  --muted: #737a86;
+  --soft: #626a77;
+  --faint: #9aa1ad;
+  --link: #1155cc;
+  --err: #b3261e;
+  --err-border: #e3b5b1;
+  --err-bg: #fdf3f2;
+  --ok: #1a7f37;
+  --accent: #ffce00;
+  --on-accent: #14161a;
+  --pick-bg: #fffdf3;
+  --unread-bg: #fffdf5;
+  --primary-bg: #14161a;
+  --primary-fg: #ffffff;
+  --primary-hover: #2b313b;
+  --primary-disabled-bg: #d5d9e0;
+  --primary-disabled-fg: #8b909b;
+  --ghost-bg: #ffffff;
+  --ghost-fg: #3a4150;
 }
 
 html,
 body {
   margin: 0;
   padding: 0;
-  background: #f6f7f9;
-  color: #14161a;
+  background: var(--bg);
+  color: var(--text);
   font:
     14px/1.5 -apple-system,
     BlinkMacSystemFont,
@@ -25,45 +87,45 @@ button {
 }
 
 .primary {
-  background: #14161a;
-  color: #fff;
-  border: 1px solid #14161a;
+  background: var(--primary-bg);
+  color: var(--primary-fg);
+  border: 1px solid var(--primary-bg);
   border-radius: 5px;
   padding: 6px 13px;
   font-size: 13px;
 
   &:hover:not(:disabled) {
-    background: #2b313b;
+    background: var(--primary-hover);
   }
 
   &:disabled {
-    background: #d5d9e0;
-    border-color: #d5d9e0;
-    color: #8b909b;
+    background: var(--primary-disabled-bg);
+    border-color: var(--primary-disabled-bg);
+    color: var(--primary-disabled-fg);
     cursor: default;
   }
 }
 
 .ghost {
-  background: #fff;
-  color: #3a4150;
-  border: 1px solid #d3d7de;
+  background: var(--ghost-bg);
+  color: var(--ghost-fg);
+  border: 1px solid var(--border);
   border-radius: 5px;
   padding: 6px 11px;
   font-size: 12px;
 
   &:hover:not(:disabled) {
-    border-color: #a8b0bd;
+    border-color: var(--border-strong);
   }
 
   &:disabled {
-    color: #a8b0bd;
+    color: var(--border-strong);
     cursor: default;
   }
 }
 
 a {
-  color: #1155cc;
+  color: var(--link);
 }
 
 /* The explicit loader (src/layout/Loader.tsx): spinner + label, used by the shell's users
@@ -73,15 +135,15 @@ a {
   align-items: center;
   gap: 9px;
   margin: 18px 0;
-  color: #8b909b;
+  color: var(--faint);
   font-size: 13px;
 
   .spinner {
     width: 14px;
     height: 14px;
     flex: none;
-    border: 2px solid #d3d7de;
-    border-top-color: #ffce00;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
     border-radius: 50%;
     animation: loader-spin 0.7s linear infinite;
   }
@@ -102,7 +164,7 @@ a {
 /* The shell's users gate error line. Deliberately NOT `.err`: this file's rules are global and
    hand-scoped `.shell .err` would out-specify the pages' own `.err` styling. */
 .load-err {
-  color: #b3261e;
+  color: var(--err);
   font-size: 13px;
   margin: 18px 0;
 }

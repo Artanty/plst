@@ -19,10 +19,10 @@
   }
 
   .card {
-    border: 1px solid #e2e6ec;
+    border: 1px solid var(--border-soft);
     border-radius: 8px;
     padding: 12px 14px;
-    background: #fff;
+    background: var(--surface);
 
     .row {
       display: flex;
@@ -37,12 +37,12 @@
   }
 
   .meta {
-    color: #737a86;
+    color: var(--muted);
     font-size: 12px;
     margin: 0;
 
     a {
-      color: #1155cc;
+      color: var(--link);
     }
   }
 
@@ -51,7 +51,7 @@
     font-size: 12px;
 
     a {
-      color: #1155cc;
+      color: var(--link);
       text-decoration: none;
     }
   }
@@ -71,10 +71,10 @@
         width: auto;
         padding: 5px 10px;
         font-size: 12px;
-        border: 1px solid #d3d7de;
+        border: 1px solid var(--border);
         border-radius: 6px;
-        background: #fff;
-        color: #333;
+        background: var(--surface);
+        color: var(--ghost-fg);
         cursor: pointer;
       }
     }
@@ -89,7 +89,7 @@
       font-size: 11px;
       text-transform: uppercase;
       letter-spacing: 0.6px;
-      color: #737a86;
+      color: var(--muted);
       margin-bottom: 4px;
     }
 
@@ -97,7 +97,7 @@
       width: 100%;
       box-sizing: border-box;
       padding: 8px 10px;
-      border: 1px solid #d3d7de;
+      border: 1px solid var(--border);
       border-radius: 6px;
       font-size: 14px;
     }
@@ -107,7 +107,7 @@
     list-style: none;
     margin: 0;
     padding: 0;
-    border: 1px solid #eef1f5;
+    border: 1px solid var(--border-faint);
     border-radius: 6px;
     max-height: 56vh;
     overflow: auto;
@@ -121,7 +121,7 @@
     }
 
     li + li {
-      border-top: 1px solid #eef1f5;
+      border-top: 1px solid var(--border-faint);
     }
 
     label {
@@ -144,10 +144,10 @@
       width: auto;
       padding: 3px 8px;
       font-size: 11px;
-      border: 1px solid #d3d7de;
+      border: 1px solid var(--border);
       border-radius: 6px;
-      background: #fff;
-      color: #333;
+      background: var(--surface);
+      color: var(--ghost-fg);
       cursor: pointer;
     }
 
@@ -156,7 +156,7 @@
     }
 
     .a {
-      color: #626a77;
+      color: var(--soft);
       display: flex;
       gap: 4px;
 
@@ -167,13 +167,13 @@
 
     .d {
       margin-left: auto;
-      color: #9aa1ad;
+      color: var(--faint);
       font-variant-numeric: tabular-nums;
     }
 
     .new {
-      background: #ffce00;
-      color: #14161a;
+      background: var(--accent);
+      color: var(--on-accent);
       border-radius: 8px;
       font-size: 10px;
       font-weight: 700;
@@ -182,12 +182,12 @@
   }
 
   .muted {
-    color: #737a86;
+    color: var(--muted);
     font-size: 13px;
   }
 
   .err {
-    color: #b3261e;
+    color: var(--err);
     font-size: 13px;
   }
 

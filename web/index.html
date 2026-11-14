@@ -5,6 +5,12 @@
     <title>plst</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+    <!-- Pre-paint theme: dark is the default; the stored choice wins. Inline and blocking
+         on purpose — waiting for the bundle would flash the wrong palette. -->
+    <script>
+      document.documentElement.dataset.theme =
+        localStorage.getItem('plst-theme') === 'light' ? 'light' : 'dark';
+    </script>
   </head>
   
   <body>

@@ -11,7 +11,10 @@ import { defineConfig } from 'vite';
 // Under vitest, drop BACK_URL BEFORE dotenv runs (dotenv never overrides existing vars):
 // vitest mirrors process.env into import.meta.env, and specs must not depend on the
 // developer's local BACK_URL.
-if (process.env.VITEST) process.env.BACK_URL = '';
+if (process.env.VITEST) {
+  process.env.BACK_URL = '';
+  process.env.FEAT_BACK_URL = '';
+}
 dotenv.config();
 
 /**
@@ -49,9 +52,13 @@ export default defineConfig(({ command, mode }) => ({
     command === 'serve' && mode !== 'test'
       ? {
           'import.meta.env.BACK_URL': JSON.stringify(process.env.BACK_URL ?? ''),
+          'import.meta.env.FEAT_BACK_URL': JSON.stringify(process.env.FEAT_BACK_URL ?? ''),
           'import.meta.env.TAG_VERSION': JSON.stringify(devTagVersion()),
         }
-      : { 'import.meta.env.BACK_URL': JSON.stringify(process.env.BACK_URL ?? '') },
+      : {
+          'import.meta.env.BACK_URL': JSON.stringify(process.env.BACK_URL ?? ''),
+          'import.meta.env.FEAT_BACK_URL': JSON.stringify(process.env.FEAT_BACK_URL ?? ''),
+        },
   server: {
     proxy: {
       // Fallback only: without BACK_URL the app talks same-origin ('' in config.ts), and

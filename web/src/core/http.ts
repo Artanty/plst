@@ -8,6 +8,7 @@
  * one server-side code path.
  */
 import { apiBase } from '../config';
+import { waitForFeatGate } from './feat-gate';
 
 const LIBRARY_PREFIX = '/api/library';
 
@@ -44,22 +45,39 @@ export interface RequestOptions {
   userId?: number;
 }
 
+/**
+ * The feat http-gate (app-infra slot, core/feat-gate.ts holds its config): a 503 means
+ * the snapdeploy backend is asleep — the gate parks the request, wakes the container
+ * over the bus (feat wake-up v2), and retries once, showing a blocking loader meanwhile.
+ * Without the gate (local dev, tests, feat host unset) this is plain fetch.
+ */
+declare global {
+  interface Window {
+    featGate?: { request: (url: string, init?: RequestInit) => Promise<Response> };
+  }
+}
+
 export async function apiFetch<T>(path: string, options: RequestOptions = {}): Promise<T> {
+  // Let the http-gate bundle land first (bounded): a boot 503 before the gate exists
+  // would surface as an error instead of waking the backend (see feat-gate.ts).
+  await waitForFeatGate();
+
   const headers: Record<string, string> = {};
   if (path.startsWith(LIBRARY_PREFIX) && options.userId !== undefined) {
     headers['x-user-id'] = String(options.userId);
   }
   if (options.body !== undefined) headers['content-type'] = 'application/json';
 
+  const transport = window.featGate?.request ?? fetch;
   let response: Response;
   try {
-    response = await fetch(`${BASE}${path}`, {
+    response = await transport(`${BASE}${path}`, {
       method: options.method ?? 'GET',
       headers,
       ...(options.body !== undefined ? { body: JSON.stringify(options.body) } : {}),
     });
   } catch (err) {
-    // fetch() only rejects on network-level failures — the "server is not running" case.
+    // transport() only rejects on network-level failures — the "server is not running" case.
     throw new ApiError(0, '', err instanceof Error ? err.message : String(err));
   }
 

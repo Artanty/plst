@@ -23,6 +23,17 @@ export function apiBase(): string {
 }
 
 /**
+ * The feat host for pre-backend features — build-time only (web/.env FEAT_BACK_URL).
+ *
+ * The backend cannot serve `/api/features` before it is awake, so slots that must load
+ * at boot regardless of the backend (app-init → wake-up) get their bundle URL baked in
+ * from here, not from the backend config. Empty string = no bootstrap features.
+ */
+export function featBaseUrl(): string {
+  return ((import.meta.env.FEAT_BACK_URL as string | undefined) ?? '').replace(/\/+$/, '');
+}
+
+/**
  * Build-time app version — the git tag being deployed (`TAG_VERSION` env).
  *
  * The `export const TAG_VERSION = '...';` line format is load-bearing: the deploy workflow's

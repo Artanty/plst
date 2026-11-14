@@ -18,7 +18,7 @@
     flex: 1;
     min-width: 220px;
     padding: 8px 11px;
-    border: 1px solid #d3d7de;
+    border: 1px solid var(--border);
     border-radius: 6px;
     font-size: 14px;
   }
@@ -34,7 +34,7 @@
       font-size: 11px;
       text-transform: uppercase;
       letter-spacing: 0.7px;
-      color: #737a86;
+      color: var(--muted);
       margin: 0 0 6px;
     }
   }
@@ -51,35 +51,35 @@
   }
 
   .chip {
-    border: 1px solid #d3d7de;
-    background: #fff;
+    border: 1px solid var(--border);
+    background: var(--surface);
     border-radius: 14px;
     padding: 3px 10px;
     font-size: 12px;
     cursor: pointer;
 
     .n {
-      color: #9aa1ad;
+      color: var(--faint);
       font-variant-numeric: tabular-nums;
     }
 
     &:hover {
-      border-color: #a8b0bd;
+      border-color: var(--border-strong);
     }
 
     &.on {
-      background: #14161a;
-      border-color: #14161a;
-      color: #fff;
+      background: var(--primary-bg);
+      border-color: var(--primary-bg);
+      color: var(--primary-fg);
 
       .n {
-        color: #ffce00;
+        color: var(--accent);
       }
     }
   }
 
   .count {
-    color: #737a86;
+    color: var(--muted);
     font-size: 13px;
     margin: 0 0 10px;
   }
@@ -94,14 +94,14 @@
       font-size: 11px;
       text-transform: uppercase;
       letter-spacing: 0.6px;
-      color: #737a86;
-      border-bottom: 1px solid #e2e6ec;
+      color: var(--muted);
+      border-bottom: 1px solid var(--border-soft);
       padding: 6px 8px;
     }
 
     td {
       padding: 7px 8px;
-      border-bottom: 1px solid #eef1f5;
+      border-bottom: 1px solid var(--border-faint);
     }
 
     .title {
@@ -110,17 +110,17 @@
 
     .artists,
     .album {
-      color: #626a77;
+      color: var(--soft);
     }
 
     .num {
       text-align: right;
       font-variant-numeric: tabular-nums;
-      color: #626a77;
+      color: var(--soft);
     }
 
     tbody tr:hover {
-      background: #f7f9fc;
+      background: var(--hover-bg);
     }
   }
 
@@ -132,12 +132,12 @@
   }
 
   .muted {
-    color: #737a86;
+    color: var(--muted);
     font-size: 13px;
   }
 
   .err {
-    color: #b3261e;
+    color: var(--err);
     font-size: 13px;
   }
 
@@ -147,9 +147,10 @@
   }
 
   tr.picked {
-    background: #fffdf3;
+    background: var(--pick-bg);
   }
 
+  /* Deliberately dark in both themes: a floating action bar, same family as the shell bar. */
   .selbar {
     position: sticky;
     bottom: 0;
@@ -165,7 +166,7 @@
     font-size: 13px;
 
     strong {
-      color: #ffce00;
+      color: var(--accent);
     }
 
     .name {
@@ -200,7 +201,7 @@
   }
 
   .msg.standalone {
-    color: #3f7d3f;
+    color: var(--ok);
     font-size: 13px;
     margin: 12px 0 0;
   }
@@ -209,13 +210,13 @@
     border: none;
     background: none;
     padding: 0;
-    color: #1a56c4;
+    color: var(--link);
     cursor: pointer;
     font-size: 12px;
     text-decoration: underline;
 
     &:disabled {
-      color: #9aa1ad;
+      color: var(--faint);
       cursor: default;
       text-decoration: none;
     }
@@ -228,9 +229,9 @@
   .export {
     margin-top: 14px;
     padding: 12px;
-    border: 1px solid #d3d7de;
+    border: 1px solid var(--border);
     border-radius: 8px;
-    background: #fbfcfe;
+    background: var(--surface-2);
 
     .head {
       display: flex;
@@ -241,11 +242,11 @@
       font-size: 13px;
 
       strong {
-        color: #14161a;
+        color: var(--text);
       }
 
       .warn {
-        color: #b3261e;
+        color: var(--err);
       }
 
       .spacer {
@@ -260,7 +261,7 @@
 
         &.ghost {
           background: transparent;
-          border: 1px solid #d3d7de;
+          border: 1px solid var(--border);
         }
       }
     }
@@ -271,7 +272,7 @@
       font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
       font-size: 12px;
       padding: 8px;
-      border: 1px solid #d3d7de;
+      border: 1px solid var(--border);
       border-radius: 6px;
       resize: vertical;
     }
@@ -280,14 +281,14 @@
       display: inline-block;
       margin: 2px 4px 0 0;
       padding: 1px 7px;
-      border: 1px solid #d3d7de;
+      border: 1px solid var(--border);
       border-radius: 10px;
       font-size: 11px;
     }
   }
 
   .export .warnp {
-    color: #b3261e;
+    color: var(--err);
     font-size: 12px;
     margin: 8px 0 0;
   }
