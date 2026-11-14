@@ -97,6 +97,17 @@ describe('FeatureSlot', () => {
     await vi.waitFor(() => expect(container.textContent).toBe('x'));
     expect(injectedScripts()).toHaveLength(0);
   });
+
+  it('renders nothing (never throws) when the config body has no features key', async () => {
+    // found live: a 200 with a foreign body crashed the tree at config.features.filter
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve({ users: [] }) })),
+    );
+    const { container } = render(<FeatureSlot slot="app-version" fallback={<span>x</span>} />);
+    await vi.waitFor(() => expect(container.textContent).toBe('x'));
+    expect(injectedScripts()).toHaveLength(0);
+  });
 });
 
 describe('bootstrap (pre-backend) slots', () => {

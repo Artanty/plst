@@ -55,9 +55,15 @@ export function FeatureSlot({
   // point is loading while the backend is still asleep. A slot may hold an ORDERED
   // LIST of features (know/feature-slots): every matching row loads; rows without an
   // element (script-only features like the bus or http-gate) render nothing.
+  // The config body is FOREIGN data — a missing/non-array `features` key must degrade
+  // to "no rows", never crash the tree (a feature must never break the hosting page).
   const bootstrap = BOOTSTRAP_FEATURES.filter((f) => f.slot === slot);
   const rows: FeatureConfig[] =
-    bootstrap.length > 0 ? bootstrap : (config?.features.filter((f) => f.slot === slot) ?? []);
+    bootstrap.length > 0
+      ? bootstrap
+      : (Array.isArray(config?.features) ? config.features : []).filter(
+          (f) => f?.slot === slot,
+        );
 
   // Still loading the config only gates NON-bootstrap slots.
   const waitingForConfig = config === null && bootstrap.length === 0;

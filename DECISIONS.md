@@ -2,6 +2,25 @@
 
 Current thread only. Prior sessions: `DECISIONS-archive.md`.
 
+## 2026-11-14 (3) — RESULT: empty-screen crash fixed (FeatureSlot foreign data)
+
+User report: local web — wake replays worked, then blank screen +
+`useLibraryApi must be used inside <LibraryApiProvider>` (library-api.tsx:271).
+Reproduced live: root fully unmounted. REAL primary error (caught via temp window.onerror
+trap in index.html, removed after): `TypeError: Cannot read properties of undefined
+(reading 'filter') at FeatureSlot.tsx:34` — my multi-row rewrite did
+`config?.features.filter(...)`: when the config fetch RESOLVES but the body lacks a
+`features` key, `config` is defined so `?.` doesn't short-circuit and `.filter` throws,
+killing the whole React tree (no error boundary) — the useLibraryApi error was a
+follow-up casualty of the dead tree. Violated "a feature must never break the hosting
+page". Fix: `(Array.isArray(config?.features) ? config.features : []).filter(f => f?.slot
+=== slot)` — foreign config body degrades to "no rows". Regression spec added (200 with
+foreign body → fallback, no throw): 71/71 + build ok. Verified with the REAL plst python
+back (venv app.py :3218, DB up) through the gate: shell + user switcher + 493 songs
+render, zero page errors, gate loaded, no episodes (backend awake). LESSON: any wrapper
+that renders from fetched config must validate shape before array ops; also earlier e2e
+"userOption false" observations were this same crash, not fake payload shape.
+
 ## 2026-11-14 (2) — RESULT: prod HAR fix — http-gate v2 NETWORK rule
 
 Deployed plist.twc1.net was dead ("cannot reach the plst server"). HAR: preflighted
