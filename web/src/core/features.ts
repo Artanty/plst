@@ -60,7 +60,7 @@ export function bootstrapFeatures(featUrl: string): FeatureConfig[] {
     },
     row('bus', 'v1'),
     row('global-loading', 'v1'),
-    row('http-gate', 'v1'),
+    row('http-gate', 'v2'),
   ];
 }
 

@@ -113,7 +113,7 @@ describe('bootstrap (pre-backend) slots', () => {
       },
       { slot: 'app-infra', id: 'bus', baseUrl: 'https://feat.example', version: 'v1', namespace: 'js-web' },
       { slot: 'app-infra', id: 'global-loading', baseUrl: 'https://feat.example', version: 'v1', namespace: 'js-web' },
-      { slot: 'app-infra', id: 'http-gate', baseUrl: 'https://feat.example', version: 'v1', namespace: 'js-web' },
+      { slot: 'app-infra', id: 'http-gate', baseUrl: 'https://feat.example', version: 'v2', namespace: 'js-web' },
     ]);
   });
 
@@ -149,7 +149,7 @@ describe('bootstrap (pre-backend) slots', () => {
     expect(injectedScripts().map((s) => s.getAttribute('src'))).toEqual([
       'https://feat.example/bus/v1/js-web/',
       'https://feat.example/global-loading/v1/js-web/',
-      'https://feat.example/http-gate/v1/js-web/',
+      'https://feat.example/http-gate/v2/js-web/',
     ]);
     injectedScripts().forEach((s) => s.dispatchEvent(new Event('load')));
     expect(container.textContent).toBe(''); // their side effects ARE the feature

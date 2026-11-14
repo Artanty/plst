@@ -26,7 +26,14 @@ declare global {
 
 export function installFeatGateConfig(): void {
   window.FEAT_GATE_CONFIG = {
-    rules: [{ on: 'ERROR', trigger: 503 }],
+    // Both rules: while the snapdeploy container sleeps, simple GETs get a readable
+    // 503, but our preflighted calls (x-user-id / content-type) die as network errors
+    // because the sleeping edge does not answer CORS preflights — seen live in the
+    // plist.twc1.net HAR. http-gate v2 understands both.
+    rules: [
+      { on: 'ERROR', trigger: 503 },
+      { on: 'NETWORK' },
+    ],
     recovery: { event: 'wake-up', payload: { target: gateWakeTarget(), project: 'plst' } },
     // bus default is 5s; a snapdeploy cold start runs ~3 min — keep above wake-up's budget
     timeoutMs: 200000,

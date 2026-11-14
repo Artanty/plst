@@ -2,6 +2,20 @@
 
 Current thread only. Prior sessions: `DECISIONS-archive.md`.
 
+## 2026-11-14 (2) — RESULT: prod HAR fix — http-gate v2 NETWORK rule
+
+Deployed plist.twc1.net was dead ("cannot reach the plst server"). HAR: preflighted
+`/api/library/*` calls (x-user-id/content-type) → status 0 — the sleeping snapdeploy
+does not answer CORS preflights, so they die as network errors; gate's 503-only rule
+passed them through. feat http-gate **v2** adds `{on: 'NETWORK'}` (see
+feat/DECISIONS 2026-11-14 (8)). web/ changes: `core/features.ts` http-gate row v2;
+`core/feat-gate.ts` rules `[{on:'ERROR',trigger:503},{on:'NETWORK'}]`; spec expectation
+v2. 70/70 + build ok. E2E with a HAR-faithful fake (preflight dies while asleep):
+3 network-error deaths → ONE episode → wake → all parked retried to 200, loader pair
+in bus log, no error UI. USER ACTION: redeploy BOTH feat and plst. Not committed.
+Known limit left: /api/features config fetch is ungated and caches its failure —
+app-version badge appears only after a reload post-wake.
+
 ## 2026-11-14 — RESULT: feat features wired into web, e2e-proven (70/70, build ok)
 
 Done, nothing committed (rule 5). Changes (web/):
